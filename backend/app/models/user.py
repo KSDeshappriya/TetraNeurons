@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from enum import Enum
 
 class UserRole(str, Enum):
@@ -7,6 +7,10 @@ class UserRole(str, Enum):
     VOLUNTEER = "volunteer"
     USER = "user"
     GOVERNMENT = "government"
+
+class Status(str, Enum):
+    NORMAL = "normal"
+    EMERGENCY = "emergency"
 
 class BaseUser(BaseModel):
     name: str
@@ -36,9 +40,13 @@ class UserProfile(BaseUser):
     department: Optional[str] = None
     unit: Optional[str] = None
     position: Optional[str] = None
+    status: Optional[Status] = Status.NORMAL
 
 class Token(BaseModel):
     access_token: str
     token_type: str
     expires_in: int
-    user_info: dict
+    user_info: Dict[str, Any] 
+    
+    class Config:
+        arbitrary_types_allowed = True

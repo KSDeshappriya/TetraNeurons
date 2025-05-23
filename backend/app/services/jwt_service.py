@@ -7,6 +7,8 @@ import os
 class JWTService:
     def __init__(self):
         self.secret_key = os.getenv("JWT_SECRET_KEY")
+        if not self.secret_key:
+            raise ValueError("JWT_SECRET_KEY environment variable is not set")
         self.algorithm = "HS256"
         self.access_token_expire_minutes = 60 * 24  # 24 hours
     
