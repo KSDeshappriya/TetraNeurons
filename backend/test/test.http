@@ -1,10 +1,10 @@
 ### Test the signup endpoint
-POST http://0.0.0.0:8000/auth/signup
+POST http://localhost:8000/auth/signup
 Content-Type: application/json
 
 {
   "name": "John Doe",
-  "email": "john@example.com",
+  "email": "john1@example.com",
   "password": "password123",
   "phone": "+1234567890",
   "latitude": 40.7128,
@@ -14,7 +14,7 @@ Content-Type: application/json
 }
 
 ### Test the login endpoint for a wrong password
-POST http://0.0.0.0:8000/auth/login
+POST http://localhost:8000/auth/login
 Content-Type: application/json
 
 {
@@ -23,7 +23,7 @@ Content-Type: application/json
 }
 
 ### Test the login endpoint for a correct password
-POST http://0.0.0.0:8000/auth/login
+POST http://localhost:8000/auth/login
 Content-Type: application/json
 
 {
@@ -32,7 +32,7 @@ Content-Type: application/json
 }
 
 ### test routes authentification
-GET http://0.0.0.0:8000/gov/dashboard
+GET http://localhost:8000/gov/dashboard
 
 ### Test token verification
 GET http://localhost:8000/auth/verify
