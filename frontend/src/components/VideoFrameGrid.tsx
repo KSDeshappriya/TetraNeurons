@@ -21,7 +21,7 @@ const VideoFrameGrid: React.FC = () => {
     const duration = video.duration;
     const frameTimes = Array.from({ length: 9 }, (_, i) => (i / 8) * duration);
 
-    const frameSize = 200;
+    const frameSize = 600;
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -43,7 +43,7 @@ const VideoFrameGrid: React.FC = () => {
       });
     }
 
-    const dataUrl = canvas.toDataURL('image/jpeg');
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95); // quality between 0 (low) and 1 (high)
     setImageSrc(dataUrl);
   };
 
