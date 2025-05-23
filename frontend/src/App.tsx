@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router';
-import SignIn from './pages/signin';
+import SignIn from './pages/auth/signin';
 import SignUp from './pages/signup';
-import Unauthorized from './pages/Unauthorized';
+import Unauthorized from './pages/auth/Unauthorized';
 import { 
   AuthRoute, 
   PublicRoute, 

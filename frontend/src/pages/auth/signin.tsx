@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import { authService } from '../services/auth';
-import type { UserLogin } from '../services/auth';
+import { authService } from '../../services/auth';
+import type { UserLogin } from '../../services/auth';
 import { useNavigate } from 'react-router';
 
 const SignIn: React.FC = () => {
