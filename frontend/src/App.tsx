@@ -12,10 +12,17 @@ import {
   PrivateRoute 
 } from './components/ProtectedRoute';
 import Profile from './pages/profile';
+import VideoFrameGrid from './components/VideoFrameGrid';
 
 const App: React.FC = () => {
   return (
         <Routes>
+
+          <Route path="/video" element={
+            <PublicRoute>
+              <VideoFrameGrid />
+            </PublicRoute>
+          } />
 
           <Route path="/public/*" element={
             <PublicRoute>
