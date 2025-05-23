@@ -12,14 +12,22 @@ import {
   PrivateRoute 
 } from './components/ProtectedRoute';
 import Profile from './pages/profile';
+import VideoFrameGrid from './components/VideoFrameGrid';
 import UserDashboard from './pages/UserDashboard';
 import VolunteerDashboard from './pages/VolunteerDashboard';
 import FirstResponderDashboard from './pages/FirstResponderDashboard';
 import GovernmentDashboard from './pages/GovernmentDashboard';
 
+
 const App: React.FC = () => {
   return (
         <Routes>
+
+          <Route path="/video" element={
+            <PublicRoute>
+              <VideoFrameGrid />
+            </PublicRoute>
+          } />
 
           <Route path="/public/*" element={
             <PublicRoute>

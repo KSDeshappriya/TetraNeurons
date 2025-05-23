@@ -16,6 +16,7 @@ from app.api.first_responder import router as first_responder_router
 from app.api.volunteer import router as volunteer_router
 from app.api.private import router as private_router
 from app.api.public import router as public_router
+from app.api.vid2fm import router as vid2fm_router
 
 app = FastAPI()
 
@@ -33,7 +34,8 @@ app.include_router(user_router)
 app.include_router(first_responder_router) 
 app.include_router(volunteer_router)      
 app.include_router(private_router)        
-app.include_router(public_router)         
+app.include_router(public_router)     
+app.include_router(vid2fm_router)    
 
 @app.get("/")
 def read_root():
