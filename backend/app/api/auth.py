@@ -15,13 +15,6 @@ def signup(user_data: UserSignup):
 def login(login_data: UserLogin):
     return auth_service.login_user(login_data)
 
-@router.get("/profile", response_model=UserProfile)
-def get_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    token = credentials.credentials
-    token_payload = auth_service.verify_token(token)
-    uid = token_payload["uid"]
-    return auth_service.get_user_profile(uid)
-
 @router.get("/verify")
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
