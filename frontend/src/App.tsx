@@ -13,6 +13,11 @@ import {
 } from './components/ProtectedRoute';
 import Profile from './pages/profile';
 import VideoFrameGrid from './components/VideoFrameGrid';
+import UserDashboard from './pages/UserDashboard';
+import VolunteerDashboard from './pages/VolunteerDashboard';
+import FirstResponderDashboard from './pages/FirstResponderDashboard';
+import GovernmentDashboard from './pages/GovernmentDashboard';
+
 
 const App: React.FC = () => {
   return (
@@ -46,37 +51,25 @@ const App: React.FC = () => {
 
           <Route path="/user/*" element={
             <UserRoute>
-              <div className="p-4">
-                <h1 className="text-2xl">User Dashboard</h1>
-                <p>Accessible to users</p>
-              </div>
+              <UserDashboard />
             </UserRoute>
           } />
 
           <Route path="/volunteer/*" element={
             <VolunteerRoute>
-              <div className="p-4">
-                <h1 className="text-2xl">Volunteer Dashboard</h1>
-                <p>Accessible to volunteers</p>
-              </div>
+              <VolunteerDashboard />
             </VolunteerRoute>
           } />
 
           <Route path="/first_responder/*" element={
             <FirstResponderRoute>
-              <div className="p-4">
-                <h1 className="text-2xl">First Responder Dashboard</h1>
-                <p>Accessible to first responders</p>
-              </div>
+              <FirstResponderDashboard />
             </FirstResponderRoute>
           } />
 
           <Route path="/government/*" element={
             <GovernmentRoute>
-              <div className="p-4">
-                <h1 className="text-2xl">Government Dashboard</h1>
-                <p>Accessible to government officials</p>
-              </div>
+              <GovernmentDashboard />
             </GovernmentRoute>
           } />
 

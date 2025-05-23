@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, MapPin, Phone, Mail, Building, Users, Award, Briefcase } from 'lucide-react';
 import { authService, type UserProfile } from '../services/auth';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 
 
 const Profile: React.FC = () => {
@@ -28,6 +26,7 @@ const Profile: React.FC = () => {
 
   const handleLogout = async () =>  {
     await authService.logout();
+    window.location.reload();
   };
 
   const generateAvatarUrl = (name: string) => {
@@ -255,22 +254,16 @@ const Profile: React.FC = () => {
                 </div>
               </div>
               <div className="rounded-lg border border-gray-200 overflow-hidden">
-                <MapContainer
-                  center={[profile.latitude, profile.longitude]}
-                  zoom={20}
-                  style={{ height: 200, width: '100%' }}
-                  scrollWheelZoom={false}
-                >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  />
-                  <Marker position={[profile.latitude, profile.longitude]}>
-                    <Popup>
-                      {profile.name}'s Location
-                    </Popup>
-                  </Marker>
-                </MapContainer>
+                <iframe
+                  title="User Location Map"
+                  width="100%"
+                  height="200"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${profile.longitude-0.005}%2C${profile.latitude-0.005}%2C${profile.longitude+0.005}%2C${profile.latitude+0.005}&layer=mapnik&marker=${profile.latitude}%2C${profile.longitude}`}
+                ></iframe>
               </div>
             </div>
           </div>

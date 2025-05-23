@@ -3,6 +3,7 @@ import { MapPin, Eye, EyeOff } from 'lucide-react';
 import { authService} from '../services/auth';
 import type { UserSignup } from '../services/auth';
 import { useLocation } from '../hooks/useLocation';
+import { useNavigate } from 'react-router';
 
 const SignUp: React.FC = () => {
   const [formData, setFormData] = useState<UserSignup>({
@@ -20,6 +21,7 @@ const SignUp: React.FC = () => {
   const [message, setMessage] = useState('');
   
   const { location, loading: locationLoading, error: locationError, getCurrentLocation } = useLocation();
+  const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -51,7 +53,10 @@ const SignUp: React.FC = () => {
 
       const result = await authService.signup(submitData);
       if (result != null) {
-      setMessage('Account created successfully!');
+        setMessage('Account created successfully!');
+        setTimeout(() => {
+          navigate('/auth/signin');
+        }, 1000);
       }
     } catch (error) {
       const err = error as { response?: { data?: { detail?: string } } };

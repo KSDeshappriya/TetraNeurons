@@ -18,7 +18,7 @@ class AuthService:
     def is_domain_trusted(self, email: str, role: str) -> bool:
         domain = email.split('@')[-1].lower()
         if role == "government":
-            return domain in TRUSTED_DOMAINS.get("government", [])
+            return domain in TRUSTED_DOMAINS.get("gov", [])
         elif role == "first_responder":
             return domain in TRUSTED_DOMAINS.get("first_responders", [])
         return True  
