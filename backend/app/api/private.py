@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends
-from app.services.role_service import require_any_role
 from app.models.user import UserProfile
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/private", tags=["Private - Any Authenticated User"])
+security = HTTPBearer()
+auth_service = AuthService()
 
-@router.get("/profile")
-def get_private_profile(current_user: UserProfile = Depends(require_any_role)):
-    return {
-        "message": "Private area",
-        "user": current_user.name,
-        "role": current_user.role
-    }
+@router.get("/profile", response_model=UserProfile)
+def get_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    token_payload = auth_service.verify_token(token)
+    uid = token_payload["uid"]
+    return auth_service.get_user_profile(uid)
