@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.models.user import UserSignup, UserLogin, UserProfile, Token
+from app.models.user import UserSignup, UserLogin, Token
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
