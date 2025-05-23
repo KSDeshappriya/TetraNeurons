@@ -12,10 +12,10 @@ import {
   PrivateRoute 
 } from './components/ProtectedRoute';
 import Profile from './pages/profile';
-import UserDashboard from './pages/UserDashboard';
-import VolunteerDashboard from './pages/VolunteerDashboard';
-import FirstResponderDashboard from './pages/FirstResponderDashboard';
-import GovernmentDashboard from './pages/GovernmentDashboard';
+import UserDashboard from './pages/dashboards/UserDashboard';
+import VolunteerDashboard from './pages/dashboards/VolunteerDashboard';
+import FirstResponderDashboard from './pages/dashboards/FirstResponderDashboard';
+import GovernmentDashboard from './pages/dashboards/GovernmentDashboard';
 import VideoFrameGrid from './components/VideoFrameGrid';
 
 const App: React.FC = () => {
