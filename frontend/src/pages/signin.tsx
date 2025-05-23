@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { authService } from '../services/auth';
 import type { UserLogin } from '../services/auth';
+import { useNavigate } from 'react-router';
 
 const SignIn: React.FC = () => {
   const [formData, setFormData] = useState<UserLogin>({
@@ -11,6 +12,7 @@ const SignIn: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -29,8 +31,13 @@ const SignIn: React.FC = () => {
       const token = await authService.login(formData);
       if(token != null){
         setMessage('Login successful!');
+        const role = authService.getUserRole();
+        if (role === 'user') navigate('/user');
+        else if (role === 'volunteer') navigate('/volunteer');
+        else if (role === 'first_responder') navigate('/first_responder');
+        else if (role === 'government') navigate('/government');
+        else navigate('/public');
       }
-      // Redirect or handle successful login
     } catch (error) {
       const err = error as { response?: { data?: { detail?: string } } };
       setMessage(err.response?.data?.detail || 'Login failed');
