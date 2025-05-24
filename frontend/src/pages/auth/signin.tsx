@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { authService } from '../../services/auth';
 import type { UserLogin } from '../../services/auth';
 import { useNavigate } from 'react-router';
+import { useLocation } from '../../hooks/useLocation';
 
 const SignIn: React.FC = () => {
   const [formData, setFormData] = useState<UserLogin>({
     email: '',
     password: '',
+    latitude: 0,
+    longitude: 0
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const { location, loading: locationLoading, error: locationError, getCurrentLocation, clearError } = useLocation();
   const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,13 +26,30 @@ const SignIn: React.FC = () => {
     }));
   };
 
+  const handleLocationClick = () => {
+    clearError(); // Clear previous errors
+    getCurrentLocation();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
+    if (!location) {
+      setMessage('Please share your location to continue');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const token = await authService.login(formData);
+      const submitData = {
+        ...formData,
+        latitude: location.latitude,
+        longitude: location.longitude
+      };
+
+      const token = await authService.login(submitData);
       if(token != null){
         setMessage('Login successful!');
         const role = authService.getUserRole();
@@ -86,9 +107,83 @@ const SignIn: React.FC = () => {
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium mb-2">Location</label>
+            <button
+              type="button"
+              onClick={handleLocationClick}
+              disabled={locationLoading}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center gap-2 ${
+                locationError 
+                  ? 'border-red-500 bg-red-50' 
+                  : location 
+                    ? 'border-green-500 bg-green-50' 
+                    : 'border-gray-300'
+              }`}
+            >
+              {locationLoading ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  Getting location...
+                </>
+              ) : locationError ? (
+                <>
+                  <AlertCircle size={16} className="text-red-500" />
+                  <span className="text-red-600">Try again</span>
+                </>
+              ) : location ? (
+                <>
+                  <MapPin size={16} className="text-green-500" />
+                  <span className="text-green-600">Location obtained</span>
+                  <svg
+                    className="h-5 w-5 text-green-500"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path d="M5 13l4 4L19 7" />
+                  </svg>
+                </>
+              ) : (
+                <>
+                  <MapPin size={16} />
+                  Get current location
+                </>
+              )}
+            </button>
+            
+            {locationError && (
+              <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-red-700 text-sm font-medium">Location Error</p>
+                    <p className="text-red-600 text-sm mt-1">{locationError}</p>
+                    {locationError.includes('denied') && (
+                      <p className="text-red-600 text-xs mt-2">
+                        💡 Tip: Look for a location icon in your browser's address bar and click "Allow"
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {location && (
+              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">
+                  📍 Location: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                </p>
+              </div>
+            )}
+          </div>
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !location}
             className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Signing in...' : 'Sign In'}

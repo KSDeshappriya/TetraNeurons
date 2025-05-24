@@ -15,7 +15,7 @@ export const useLocation = () => {
     setError(null);
 
     if (!navigator.geolocation) {
-      setError('Geolocation is not supported');
+      setError('Geolocation is not supported by this browser');
       setLoading(false);
       return;
     }
@@ -29,11 +29,37 @@ export const useLocation = () => {
         setLoading(false);
       },
       (err) => {
-        setError(err.message);
+        let errorMessage = 'Failed to get location';
+        
+        switch(err.code) {
+          case err.PERMISSION_DENIED:
+            errorMessage = 'Location access denied. Please enable location permissions in your browser settings.';
+            break;
+          case err.POSITION_UNAVAILABLE:
+            errorMessage = 'Location information is unavailable. Please check your GPS or network connection.';
+            break;
+          case err.TIMEOUT:
+            errorMessage = 'Location request timed out. Please try again.';
+            break;
+          default:
+            errorMessage = `Location error: ${err.message}`;
+            break;
+        }
+        
+        setError(errorMessage);
         setLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000, // 10 seconds timeout
+        maximumAge: 300000 // Accept cached position if less than 5 minutes old
       }
     );
   };
 
-  return { location, loading, error, getCurrentLocation };
+  const clearError = () => {
+    setError(null);
+  };
+
+  return { location, loading, error, getCurrentLocation, clearError };
 };

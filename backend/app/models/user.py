@@ -31,6 +31,8 @@ class UserSignup(BaseUser):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    latitude: float
+    longitude: float
 
 class UserProfile(BaseUser):
     uid: str
