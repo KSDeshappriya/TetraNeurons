@@ -1,93 +1,125 @@
-import { Routes, Route,  } from 'react-router';
-// import { Navigate } from 'react-router';
-import SignIn from './pages/auth/signin';
-import SignUp from './pages/auth/signup';
-import Unauthorized from './pages/auth/Unauthorized';
-// import { 
-//   AuthRoute, 
-//   PublicRoute, 
-//   UserRoute, 
-//   VolunteerRoute, 
-//   FirstResponderRoute, 
-//   GovernmentRoute, 
-//   PrivateRoute 
-// } from './components/ProtectedRoute';
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import AppLayout from './components/layout/AppLayout';
+import { NotificationProvider, NotificationToast } from './components/communication/NotificationProvider';
+
+// Pages
+import Home from './pages/Home';
+import Dashboard from './pages/Dashboard';
 import Profile from './pages/profile';
+
+// Dashboards
 import UserDashboard from './pages/dashboards/UserDashboard';
 import VolunteerDashboard from './pages/dashboards/VolunteerDashboard';
 import FirstResponderDashboard from './pages/dashboards/FirstResponderDashboard';
 import GovernmentDashboard from './pages/dashboards/GovernmentDashboard';
-import VideoFrameGrid from './components/VideoFrameGrid';
+
+// First Responder Pages
+import Incidents from './pages/first_responder/Incidents';
+import Resources from './pages/first_responder/Resources';
+import Teams from './pages/first_responder/Teams';
+
+// Government Pages
+import Overview from './pages/government/Overview';
+import GovernmentResources from './pages/government/Resources';
+import Reports from './pages/government/Reports';
+
+// User Pages
+import EmergencyReports from './pages/user/EmergencyReports';
+import UserResources from './pages/user/UserResources';
+
+// Volunteer Pages
+import VolunteerAssignments from './pages/volunteer/VolunteerAssignments';
+import VolunteerResources from './pages/volunteer/VolunteerResources';
+
+// Communication
+import CommunicationHub from './pages/communication/CommunicationHub';
 
 const App: React.FC = () => {
   return (
-        // <Routes>
-        //   <Route path="/public/*" element={
-        //     <PublicRoute>
-        //       <VideoFrameGrid />
-        //     </PublicRoute>
-        //   } />
-
-        //   <Route path="/auth/signin" element={
-        //     <AuthRoute>
-        //       <SignIn />
-        //     </AuthRoute>
-        //   } />
-        //   <Route path="/auth/signup" element={
-        //     <AuthRoute>
-        //       <SignUp />
-        //     </AuthRoute>
-        //   } />
-
-        //   <Route path="/user/*" element={
-        //     <UserRoute>
-        //       <UserDashboard />
-        //     </UserRoute>
-        //   } />
-
-        //   <Route path="/volunteer/*" element={
-        //     <VolunteerRoute>
-        //       <VolunteerDashboard />
-        //     </VolunteerRoute>
-        //   } />
-
-        //   <Route path="/first_responder/*" element={
-        //     <FirstResponderRoute>
-        //       <FirstResponderDashboard />
-        //     </FirstResponderRoute>
-        //   } />
-
-        //   <Route path="/government/*" element={
-        //     <GovernmentRoute>
-        //       <GovernmentDashboard />
-        //     </GovernmentRoute>
-        //   } />
-
-        //   <Route path="/private/*" element={
-        //     <PrivateRoute>
-        //       <Profile />
-        //     </PrivateRoute>
-        //   } />
-
-        //   <Route path="/unauthorized" element={<Unauthorized />} />
-          
-        //   <Route path="/" element={<Navigate to="/public" replace />} />
-          
-        //   <Route path="*" element={<Navigate to="/public" replace />} />
-        // </Routes>
-        <Routes>
-      <Route path="/public/*" element={<VideoFrameGrid onImageReady={() => {}} onClose={() => {}} />} />
-      <Route path="/auth/signin" element={<SignIn />} />
-      <Route path="/auth/signup" element={<SignUp />} />
-      <Route path="/user/*" element={<UserDashboard />} />
-      <Route path="/volunteer/*" element={<VolunteerDashboard />} />
-      <Route path="/first_responder/*" element={<FirstResponderDashboard />} />
-      <Route path="/government/*" element={<GovernmentDashboard />} />
-      <Route path="/private/*" element={<Profile />} />
-      <Route path="/unauthorized" element={<Unauthorized />} />
-      {/* <Route path="/" element={<Navigate to="/public" replace />} />
-      <Route path="*" element={<Navigate to="/public" replace />} /> */}
-    </Routes>
+    <NotificationProvider>
+      <NotificationToast />
+      <Routes>
+        {/* Home page without authentication */}
+        <Route path="/" element={<Home />} />
+        
+        {/* Main dashboard */}
+        <Route path="/dashboard" element={<Dashboard />} />
+        
+        {/* User Routes */}
+        <Route path="/user" element={
+          <AppLayout>
+            <Routes>
+              <Route index element={<UserDashboard />} />
+              <Route path="reports" element={<EmergencyReports />} />
+              <Route path="resources" element={<UserResources />} />
+            </Routes>
+          </AppLayout>
+        } />
+        
+        {/* Volunteer Routes */}
+        <Route path="/volunteer" element={
+          <AppLayout>
+            <Routes>
+              <Route index element={<VolunteerDashboard />} />
+              <Route path="assignments" element={<VolunteerAssignments />} />
+              <Route path="resources" element={<VolunteerResources />} />
+            </Routes>
+          </AppLayout>
+        } />
+        
+        {/* First Responder Routes */}
+        <Route path="/first_responder" element={
+          <AppLayout>
+            <Routes>
+              <Route index element={<FirstResponderDashboard />} />
+              <Route path="incidents" element={<Incidents />} />
+              <Route path="resources" element={<Resources />} />
+              <Route path="teams" element={<Teams />} />
+            </Routes>
+          </AppLayout>
+        } />
+        
+        {/* Government Routes */}
+        <Route path="/government" element={
+          <AppLayout>
+            <Routes>
+              <Route index element={<GovernmentDashboard />} />
+              <Route path="overview" element={<Overview />} />
+              <Route path="resources" element={<GovernmentResources />} />
+              <Route path="reports" element={<Reports />} />
+            </Routes>
+          </AppLayout>
+        } />
+        
+        {/* Communication */}
+        <Route path="/communication" element={
+          <AppLayout>
+            <CommunicationHub />
+          </AppLayout>
+        } />
+        
+        {/* Profile Route */}
+        <Route path="/profile" element={
+          <AppLayout>
+            <Profile />
+          </AppLayout>
+        } />
+        
+        {/* Settings placeholder */}
+        <Route path="/settings" element={
+          <AppLayout>
+            <div className="p-6">
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">Settings</h1>
+              <p className="text-gray-600">Settings page - Coming soon</p>
+            </div>
+          </AppLayout>
+        } />
+        
+        {/* Catch all - redirect to home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </NotificationProvider>
   );
 };
 

@@ -3,7 +3,7 @@ import { MapPin, Eye, EyeOff } from 'lucide-react';
 import { authService} from '../../services/auth';
 import type { UserSignup } from '../../services/auth';
 import { useLocation } from '../../hooks/useLocation';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 
 const SignUp: React.FC = () => {
   const [formData, setFormData] = useState<UserSignup>({
@@ -231,11 +231,12 @@ const SignUp: React.FC = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
-              />
-              <button
+              />              <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                title={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
