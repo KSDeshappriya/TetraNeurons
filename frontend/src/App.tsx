@@ -76,7 +76,7 @@ const App: React.FC = () => {
         //   <Route path="*" element={<Navigate to="/public" replace />} />
         // </Routes>
         <Routes>
-      <Route path="/public/*" element={<VideoFrameGrid />} />
+      <Route path="/public/*" element={<VideoFrameGrid onImageReady={() => {}} onClose={() => {}} />} />
       <Route path="/auth/signin" element={<SignIn />} />
       <Route path="/auth/signup" element={<SignUp />} />
       <Route path="/user/*" element={<UserDashboard />} />
