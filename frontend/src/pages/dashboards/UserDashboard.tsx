@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import VideoFrameGrid from '../../components/VideoFrameGrid';
-import { sendEmergencyReport } from '../../services/emergency_service';
+import { sendEmergencyReport } from '../../services/emergency';
 
 
 interface SwitchProps {
