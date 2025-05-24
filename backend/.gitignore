@@ -4,3 +4,6 @@ serviceAccountKey.json
 .env
 .pytest_cache
 *.egg-info
+
+# developer files
+others/
