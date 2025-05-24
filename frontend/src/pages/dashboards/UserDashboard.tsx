@@ -72,6 +72,10 @@ const UserDashboard: React.FC = () => {
   const [videoGridKey, setVideoGridKey] = useState(0);
   const [videoGridRecording, setVideoGridRecording] = useState(false);
   const [videoGridImage, setVideoGridImage] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
 
   const emergencyTypes: EmergencyType[] = [
     { id: 'flood', name: 'Flood', icon: Cloud },
@@ -96,11 +100,18 @@ const UserDashboard: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!emergencyActive) {
-      alert('Please activate emergency switch to report');
+      setAlertMessage('Please activate emergency switch to report');
+      setAlertOpen(true);
       return;
     }
     if (!emergencyType || !urgencyLevel || !situation || !peopleCount) {
-      alert('Please fill in all required fields');
+      setAlertMessage('Please fill in all required fields');
+      setAlertOpen(true);
+      return;
+    }
+    if (!userLocation) {
+      setAlertMessage('Location is required. Please get your location.');
+      setAlertOpen(true);
       return;
     }
     // Prepare form data
@@ -109,6 +120,8 @@ const UserDashboard: React.FC = () => {
     formData.append('urgencyLevel', urgencyLevel);
     formData.append('situation', situation);
     formData.append('peopleCount', peopleCount);
+    formData.append('latitude', String(userLocation.latitude));
+    formData.append('longitude', String(userLocation.longitude));
     if (videoGridImage) {
       // Convert base64 to blob
       const blob = await (await fetch(videoGridImage)).blob();
@@ -116,7 +129,8 @@ const UserDashboard: React.FC = () => {
     }
     // Use the service for API call
     await sendEmergencyReport(formData);
-    alert('Emergency report submitted successfully');
+    setAlertMessage('Emergency report submitted successfully');
+    setAlertOpen(true);
     // Reset form
     setEmergencyActive(false);
     setEmergencyType('');
@@ -185,6 +199,40 @@ const UserDashboard: React.FC = () => {
     setShowVideoGrid(false);
     setVideoGridRecording(false);
   };
+
+  const handleGetLocation = () => {
+    setLocationError(null);
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      () => {
+        setLocationError('Unable to retrieve your location.');
+      }
+    );
+  };
+
+  // Alert modal component
+  function AlertModal({ open, onClose, message }: { open: boolean; onClose: () => void; message: string }) {
+    if (!open) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full relative">
+          <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+          <div className="text-lg font-semibold mb-4">Alert</div>
+          <div className="mb-4 text-gray-800">{message}</div>
+          <button onClick={onClose} className="w-full bg-black text-white py-2 rounded hover:bg-gray-800">OK</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -278,20 +326,6 @@ const UserDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Situation Description */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Describe the Situation *
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={situation}
-                      onChange={handleSituationChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                      placeholder="Please provide details about the emergency situation..."
-                    />
-                  </div>
-
                   {/* Number of People */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -311,6 +345,43 @@ const UserDashboard: React.FC = () => {
                       <option value="50+">More than 50 people</option>
                       <option value="unknown">Unknown</option>
                     </select>
+                  </div>
+
+                  {/* Situation Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Describe the Situation *
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={situation}
+                      onChange={handleSituationChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      placeholder="Please provide details about the emergency situation..."
+                    />
+                  </div>
+                  {/* User Location Button (Required, Map Marker Icon, Red Star) */}
+                  <div>
+                    <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-1">
+                      Your Location <span className="text-red-600">*</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5 text-black"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z" /></svg>
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <button
+                        type="button"
+                        onClick={handleGetLocation}
+                        className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 flex items-center gap-2 border border-white"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5 text-white"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z" /></svg>
+                        Get My Location
+                      </button>
+                      {userLocation && (
+                        <span className="text-black text-sm">Lat: {userLocation.latitude.toFixed(5)}, Lng: {userLocation.longitude.toFixed(5)}</span>
+                      )}
+                      {locationError && (
+                        <span className="text-red-600 text-sm">{locationError}</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Video Record Only */}
@@ -427,6 +498,7 @@ const UserDashboard: React.FC = () => {
         </div>
       </div>
     </div>
+    <AlertModal open={alertOpen} onClose={() => setAlertOpen(false)} message={alertMessage} />
     </div>
   );
 };
