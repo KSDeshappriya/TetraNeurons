@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { authService } from '../../services/auth';
 import type { UserLogin } from '../../services/auth';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 
 const SignIn: React.FC = () => {
   const [formData, setFormData] = useState<UserLogin>({
