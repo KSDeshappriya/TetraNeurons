@@ -1,357 +1,234 @@
 import React, { useState } from 'react';
-import { 
-  Users, 
-  CheckCircle2, 
-  Clock, 
-  MapPin, 
-  AlertTriangle, 
-  Calendar,
-  User,
-  ClipboardList,
-  Award,
-  ChevronRight,
-  MessageSquare
-} from 'lucide-react';
-import { authService } from '../../services/auth';
-import Card from '../../components/ui/Card';
+import { CheckCircle, Clock } from 'lucide-react';
 import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
 import StatCard from '../../components/ui/StatCard';
-
-interface Assignment {
-  id: string;
-  title: string;
-  type: string;
-  location: string;
-  startTime: string;
-  duration: string;
-  status: 'upcoming' | 'active' | 'completed';
-  teamSize: number;
-  priority: 'high' | 'medium' | 'low';
-}
-
-interface Skill {
-  name: string;
-  level: string;
-}
+import { authService } from '../../lib/auth';
+import { getStatusBadgeClasses, getPriorityBadgeClasses } from '../../lib/utils';
 
 const VolunteerDashboard: React.FC = () => {
   const token = authService.getTokenPayload();
-  const [selectedAssignment, setSelectedAssignment] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'opportunities' | 'tasks' | 'schedule'>('opportunities');
 
-  // Mock data
-  const assignments: Assignment[] = [
+  const completedTasks = 12;
+  const availableTasks = 5;
+  const hoursServed = 24;
+  const impactScore = 85;
+
+  const opportunities = [
     {
-      id: 'ASN-001',
-      title: 'Evacuation Assistance',
-      type: 'Evacuation',
-      location: 'Downtown River District',
-      startTime: 'Today, 2:00 PM',
-      duration: '4 hours',
-      status: 'upcoming',
-      teamSize: 8,
-      priority: 'high'
+      id: '1',
+      title: 'Emergency Response Team',
+      organization: 'Red Cross',
+      urgency: 'high',
+      description: 'Join our emergency response team to assist in disaster relief efforts.',
+      location: 'Downtown',
+      timeCommitment: '4-6 hours'
     },
+    // Add more opportunities...
+  ];
+
+  const tasks = [
     {
-      id: 'ASN-002',
-      title: 'Medical Supply Distribution',
-      type: 'Aid Distribution',
-      location: 'North Community Center',
-      startTime: 'Tomorrow, 10:00 AM',
-      duration: '3 hours',
-      status: 'upcoming',
-      teamSize: 5,
-      priority: 'medium'
+      id: '1',
+      title: 'First Aid Training',
+      dueDate: '2024-02-01',
+      status: 'in-progress',
+      description: 'Complete the online first aid certification course.'
     },
+    // Add more tasks...
+  ];
+
+  const scheduledEvents = [
     {
-      id: 'ASN-003',
-      title: 'Temporary Shelter Setup',
-      type: 'Shelter',
-      location: 'Central High School',
-      startTime: 'Yesterday, 9:00 AM',
-      duration: '6 hours',
-      status: 'completed',
-      teamSize: 12,
-      priority: 'high'
-    }
+      id: '1',
+      title: 'Community Relief Drive',
+      date: '2024-01-15',
+      time: '09:00 AM',
+      status: 'upcoming',
+      location: 'Community Center',
+      duration: '3 hours'
+    },
+    // Add more events...
   ];
-
-  const volunteerStats = {
-    completedMissions: 24,
-    hoursContributed: 86,
-    peopleHelped: 312,
-    currentRank: 'Senior Volunteer'
-  };
-
-  const volunteerSkills: Skill[] = [
-    { name: 'First Aid', level: 'Advanced' },
-    { name: 'Search & Rescue', level: 'Intermediate' },
-    { name: 'Crisis Communications', level: 'Basic' },
-    { name: 'Emergency Shelter Management', level: 'Intermediate' }
-  ];
-
-  const notifications = [
-    'New assignment available in your area',
-    'Your skill certification expires in 2 weeks',
-    'Team meeting scheduled for tomorrow at 5 PM'
-  ];
-
-  const toggleAssignment = (id: string) => {
-    if (selectedAssignment === id) {
-      setSelectedAssignment(null);
-    } else {
-      setSelectedAssignment(id);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <span className="badge bg-primary-100 text-primary-800">In Progress</span>;
-      case 'upcoming':
-        return <span className="badge bg-warning-100 text-warning-800">Upcoming</span>;
-      case 'completed':
-        return <span className="badge bg-success-100 text-success-800">Completed</span>;
-      default:
-        return <span className="badge bg-gray-100 text-gray-800">Unknown</span>;
-    }
-  };
-
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return <span className="badge bg-emergency-100 text-emergency-800">High Priority</span>;
-      case 'medium':
-        return <span className="badge bg-warning-100 text-warning-800">Medium Priority</span>;
-      case 'low':
-        return <span className="badge bg-success-100 text-success-800">Low Priority</span>;
-      default:
-        return <span className="badge bg-gray-100 text-gray-800">Normal</span>;
-    }
-  };
 
   return (
     <div className="py-6 px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Volunteer Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome back, {token?.name}</p>
+        <h1 className="text-2xl font-bold text-gray-900">Welcome, {token?.name}</h1>
+        <p className="text-gray-600 mt-1">Volunteer Dashboard</p>
       </div>
-      
-      {/* Stats Overview */}
+
+      {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard 
-          title="Completed Missions" 
-          value={volunteerStats.completedMissions} 
-          icon={CheckCircle2}
-          variant="success"
-        />
-        <StatCard 
-          title="Hours Contributed" 
-          value={volunteerStats.hoursContributed} 
-          icon={Clock}
-          variant="info"
-        />
-        <StatCard 
-          title="People Helped" 
-          value={volunteerStats.peopleHelped} 
-          icon={Users}
-          variant="warning"
-        />
-        <StatCard 
-          title="Current Rank" 
-          value={volunteerStats.currentRank} 
-          icon={Award}
-          variant="info"
-        />
+        <div className="bg-white shadow rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm text-gray-500">Completed Tasks</p>
+              <p className="text-lg font-semibold text-gray-900">{completedTasks}</p>
+            </div>
+            <CheckCircle className="h-6 w-6 text-green-500" />
+          </div>
+        </div>
+        <div className="bg-white shadow rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm text-gray-500">Available Tasks</p>
+              <p className="text-lg font-semibold text-gray-900">{availableTasks}</p>
+            </div>
+            <Clock className="h-6 w-6 text-blue-500" />
+          </div>
+        </div>
+        <div className="bg-white shadow rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm text-gray-500">Hours Served</p>
+              <p className="text-lg font-semibold text-gray-900">{hoursServed}</p>
+            </div>
+            <Clock className="h-6 w-6 text-yellow-500" />
+          </div>
+        </div>
+        <div className="bg-white shadow rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm text-gray-500">Impact Score</p>
+              <p className="text-lg font-semibold text-gray-900">{impactScore}</p>
+            </div>
+            <CheckCircle className="h-6 w-6 text-red-500" />
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Assignments */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card 
-            title="Your Assignments" 
-            subtitle="Current and upcoming volunteer tasks"
-            headerAction={
-              <Button 
-                variant="outline" 
-                size="sm"
-                rightIcon={<ChevronRight className="h-4 w-4" />}
-              >
-                View All
-              </Button>
-            }
+      {/* Dashboard Tabs */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('opportunities')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'opportunities' 
+                ? 'border-primary-500 text-primary-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
           >
-            <div className="space-y-4">
-              {assignments.map((assignment) => (
-                <div 
-                  key={assignment.id}
-                  className={`border rounded-lg overflow-hidden transition-all duration-300 ${
-                    selectedAssignment === assignment.id 
-                      ? 'border-primary-300 shadow-soft' 
-                      : 'border-gray-200 hover:border-primary-200'
-                  }`}
-                >
-                  {/* Assignment Header */}
-                  <button 
-                    className="w-full px-4 py-3 text-left flex flex-wrap items-center justify-between gap-2"
-                    onClick={() => toggleAssignment(assignment.id)}
-                  >
-                    <div className="flex items-center space-x-3">
-                      {assignment.type === 'Evacuation' && <AlertTriangle className="h-5 w-5 text-emergency-500" />}
-                      {assignment.type === 'Aid Distribution' && <ClipboardList className="h-5 w-5 text-primary-500" />}
-                      {assignment.type === 'Shelter' && <Users className="h-5 w-5 text-warning-500" />}
-                      <span className="font-medium text-gray-900">{assignment.title}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      {getStatusBadge(assignment.status)}
-                      {getPriorityBadge(assignment.priority)}
-                    </div>
-                  </button>
-
-                  {/* Assignment Details (Expanded) */}
-                  {selectedAssignment === assignment.id && (
-                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-sm">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="flex items-start">
-                          <MapPin className="h-4 w-4 text-gray-500 mt-0.5 mr-2" />
-                          <div>
-                            <p className="font-medium text-gray-700">Location</p>
-                            <p className="text-gray-600">{assignment.location}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start">
-                          <Calendar className="h-4 w-4 text-gray-500 mt-0.5 mr-2" />
-                          <div>
-                            <p className="font-medium text-gray-700">Time</p>
-                            <p className="text-gray-600">{assignment.startTime}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start">
-                          <Clock className="h-4 w-4 text-gray-500 mt-0.5 mr-2" />
-                          <div>
-                            <p className="font-medium text-gray-700">Duration</p>
-                            <p className="text-gray-600">{assignment.duration}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start">
-                          <Users className="h-4 w-4 text-gray-500 mt-0.5 mr-2" />
-                          <div>
-                            <p className="font-medium text-gray-700">Team Size</p>
-                            <p className="text-gray-600">{assignment.teamSize} volunteers</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {assignment.status !== 'completed' && (
-                        <div className="mt-4 flex gap-2 justify-end">
-                          <Button 
-                            variant="primary" 
-                            size="sm"
-                          >
-                            {assignment.status === 'active' ? 'Check In' : 'View Details'}
-                          </Button>
-                          <Button 
-                            variant={assignment.status === 'active' ? 'emergency' : 'secondary'} 
-                            size="sm"
-                          >
-                            {assignment.status === 'active' ? 'Report Issue' : 'Request Change'}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {assignments.length === 0 && (
-                <div className="text-center py-8">
-                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No assignments scheduled</p>
-                  <Button 
-                    variant="primary" 
-                    size="sm"
-                    className="mt-4"
-                  >
-                    Browse Available Tasks
-                  </Button>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Profile & Skills */}
-          <Card 
-            title="Your Profile" 
-            headerAction={
-              <Button 
-                variant="ghost" 
-                size="sm"
-              >
-                Edit
-              </Button>
-            }
+            Opportunities
+          </button>
+          <button
+            onClick={() => setActiveTab('tasks')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'tasks' 
+                ? 'border-primary-500 text-primary-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
           >
-            <div className="flex items-center mb-4">
-              <div className="flex-shrink-0">
-                <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
-                  <User className="h-6 w-6 text-primary-600" />
-                </div>
-              </div>
-              <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">{token?.name}</h3>
-                <p className="text-sm text-gray-600">{volunteerStats.currentRank}</p>
-              </div>
-            </div>
-            
-            <hr className="my-4" />
-            
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Skills</h4>
-              <div className="space-y-2">
-                {volunteerSkills.map((skill) => (
-                  <div key={skill.name} className="flex justify-between">
-                    <span className="text-sm text-gray-600">{skill.name}</span>
-                    <span className="text-sm font-medium text-gray-900">{skill.level}</span>
-                  </div>
-                ))}
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="w-full mt-4"
-              >
-                Add New Skill
-              </Button>
-            </div>
-          </Card>
+            My Tasks
+          </button>
+          <button
+            onClick={() => setActiveTab('schedule')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'schedule' 
+                ? 'border-primary-500 text-primary-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Schedule
+          </button>
+        </nav>
+      </div>
 
-          {/* Notifications */}
-          <Card title="Notifications">
-            <ul className="divide-y divide-gray-200">
-              {notifications.map((notification, index) => (
-                <li key={index} className="py-2">
-                  <div className="flex">
-                    <span className="mr-2 mt-0.5">
-                      <div className="h-2 w-2 rounded-full bg-primary-500"></div>
+      {/* Tab Content */}
+      <div>
+        {activeTab === 'opportunities' && (
+          <div className="space-y-6">
+            {opportunities.map((opportunity) => (
+              <Card key={opportunity.id} className="hover:shadow-md transition-shadow">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">{opportunity.title}</h3>
+                      <p className="text-sm text-gray-500">{opportunity.organization}</p>
+                    </div>
+                    <span className={`bg-${opportunity.urgency}-100 text-${opportunity.urgency}-800 rounded-full px-3 py-1 text-xs font-semibold`}>
+                      {opportunity.urgency}
                     </span>
-                    <span className="text-sm text-gray-600">{notification}</span>
                   </div>
-                </li>
-              ))}
-            </ul>
-            <Button 
-              variant="outline" 
-              size="sm"
-              fullWidth
-              className="mt-3"
-              leftIcon={<MessageSquare className="h-4 w-4" />}
-            >
-              Open Communication Hub
-            </Button>
-          </Card>
-        </div>
+                  <p className="text-gray-600 mb-4">{opportunity.description}</p>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Location</p>
+                      <p className="text-gray-900">{opportunity.location}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Time Commitment</p>
+                      <p className="text-gray-900">{opportunity.timeCommitment}</p>
+                    </div>
+                  </div>
+                  <Button variant="primary" size="sm">Sign Up</Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'tasks' && (
+          <div className="space-y-6">
+            {tasks.map((task) => (
+              <Card key={task.id} className="hover:shadow-md transition-shadow">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">{task.title}</h3>
+                      <p className="text-sm text-gray-500">Due: {task.dueDate}</p>
+                    </div>
+                    <span className={`${getStatusBadgeClasses(task.status)} px-2 py-1 rounded-full text-xs`}>
+                      {task.status}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 mb-4">{task.description}</p>
+                  <div className="flex space-x-4">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      disabled={task.status === 'completed'}
+                    >
+                      Mark Complete
+                    </Button>
+                    <Button variant="outline" size="sm">View Details</Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'schedule' && (
+          <div className="space-y-6">
+            {scheduledEvents.map((event) => (
+              <Card key={event.id} className="hover:shadow-md transition-shadow">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">{event.title}</h3>
+                      <p className="text-sm text-gray-500">{event.date} at {event.time}</p>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      {event.status === 'upcoming' ? 'Cancel' : 'View'}
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Location</p>
+                      <p className="text-gray-900">{event.location}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Duration</p>
+                      <p className="text-gray-900">{event.duration}</p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

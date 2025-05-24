@@ -10,8 +10,10 @@ import {
   CheckCircle2,
   ExternalLink,
   Download,
-  PlayCircle
+  PlayCircle,
+  Clock
 } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 
@@ -30,6 +32,8 @@ interface Resource {
 }
 
 const VolunteerResources: React.FC = () => {
+  const location = useLocation();
+  
   // Mock data for volunteer resources
   const resources: Resource[] = [
     {
@@ -215,10 +219,35 @@ const VolunteerResources: React.FC = () => {
   // Group resources by category for featured section
   const safetyResources = resources.filter(r => r.category === 'safety');
   const skillsResources = resources.filter(r => r.category === 'skills');
-
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
+        {/* Navigation Tabs */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="flex space-x-8">
+            <Link
+              to="/volunteer/assignments"
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname === '/volunteer/assignments'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              My Assignments
+            </Link>
+            <Link
+              to="/volunteer/resources"
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname === '/volunteer/resources'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Resources
+            </Link>
+          </nav>
+        </div>
+
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Volunteer Resources</h1>
           <p className="text-gray-600 mt-1">Access training materials, guides and resources to help with disaster response</p>

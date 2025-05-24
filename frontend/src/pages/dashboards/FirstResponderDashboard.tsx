@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { authService } from '../../services/auth';
 import { 
   Users, 
@@ -11,7 +12,8 @@ import {
   Radio,
   ClipboardCheck,
   PhoneCall,
-  ArrowRight
+  ArrowRight,
+  PlusCircle
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import StatCard from '../../components/ui/StatCard';
@@ -178,7 +180,7 @@ const FirstResponderDashboard: React.FC = () => {
         />
       </div>
 
-      {/* Tabs */}
+      {/* Dashboard Tabs */}
       <div className="mb-6 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
@@ -218,65 +220,28 @@ const FirstResponderDashboard: React.FC = () => {
       <div>
         {activeTab === 'incidents' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Active Incidents</h2>
-              <Button 
-                variant="primary" 
-                size="sm" 
-                rightIcon={<ArrowRight className="h-4 w-4" />}
-              >
-                View All Incidents
-              </Button>
-            </div>
             {incidents.map((incident) => (
               <Card key={incident.id} className="hover:shadow-md transition-shadow">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between p-4">
                   <div className="mb-4 lg:mb-0">
                     <div className="flex items-center mb-2">
                       <h3 className="text-lg font-medium text-gray-900 mr-3">{incident.type}</h3>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClasses(incident.status)}`}>
-                        {incident.status.charAt(0).toUpperCase() + incident.status.slice(1)}
+                      <span className={`${getStatusBadgeClasses(incident.status)} px-2 py-1 rounded-full text-xs`}>
+                        {incident.status}
                       </span>
-                      <span className={`ml-2 px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadgeClasses(incident.priority)}`}>
-                        {incident.priority.charAt(0).toUpperCase() + incident.priority.slice(1)} Priority
+                      <span className={`${getPriorityBadgeClasses(incident.priority)} ml-2 px-2 py-1 rounded-full text-xs`}>
+                        {incident.priority}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-600 grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4">
-                      <div className="flex items-center">
-                        <MapPin className="h-4 w-4 text-gray-500 mr-1" />
-                        <span>{incident.location}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Clock className="h-4 w-4 text-gray-500 mr-1" />
-                        <span>Reported {incident.reportTime}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Users className="h-4 w-4 text-gray-500 mr-1" />
-                        <span>{incident.peopleAffected} people affected</span>
-                      </div>
-                      {incident.assignedTeam && (
-                        <div className="flex items-center">
-                          <Radio className="h-4 w-4 text-gray-500 mr-1" />
-                          <span>{incident.assignedTeam}</span>
-                        </div>
-                      )}
-                    </div>
+                    <p className="text-gray-600">{incident.location}</p>
+                    <p className="text-sm text-gray-500">Reported {incident.reportTime}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button 
-                      variant="primary" 
-                      size="sm" 
-                      leftIcon={<ClipboardCheck className="h-4 w-4" />}
-                    >
-                      Update Status
-                    </Button>
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
-                      leftIcon={<PhoneCall className="h-4 w-4" />}
-                    >
-                      Contact Team
-                    </Button>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600">People Affected</p>
+                      <p className="text-lg font-medium text-gray-900">{incident.peopleAffected}</p>
+                    </div>
+                    <Button variant="primary" size="sm">View Details</Button>
                   </div>
                 </div>
               </Card>
@@ -286,117 +251,47 @@ const FirstResponderDashboard: React.FC = () => {
 
         {activeTab === 'resources' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Available Resources</h2>
-              <Button 
-                variant="primary" 
-                size="sm" 
-                rightIcon={<ArrowRight className="h-4 w-4" />}
-              >
-                Manage Resources
-              </Button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Location
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {resources.map((resource) => (
-                    <tr key={resource.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{resource.name}</div>
-                        <div className="text-xs text-gray-500">{resource.id}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{resource.type}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClasses(resource.status)}`}>
-                          {resource.status.charAt(0).toUpperCase() + resource.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{resource.location}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <button className="text-primary-600 hover:text-primary-800 font-medium">
-                          Assign
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {resources.map((resource) => (
+              <Card key={resource.id} className="hover:shadow-md transition-shadow">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between p-4">
+                  <div className="mb-4 lg:mb-0">
+                    <div className="flex items-center mb-2">
+                      <h3 className="text-lg font-medium text-gray-900 mr-3">{resource.name}</h3>
+                      <span className={`${getStatusBadgeClasses(resource.status)} px-2 py-1 rounded-full text-xs`}>
+                        {resource.status}
+                      </span>
+                    </div>
+                    <p className="text-gray-600">{resource.type}</p>
+                    <p className="text-sm text-gray-500">Location: {resource.location}</p>
+                  </div>
+                  <Button variant="outline" size="sm">Manage Resource</Button>
+                </div>
+              </Card>
+            ))}
           </div>
         )}
 
         {activeTab === 'teams' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Response Teams</h2>
-              <Button 
-                variant="primary" 
-                size="sm" 
-                rightIcon={<ArrowRight className="h-4 w-4" />}
-              >
-                Manage Teams
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {teams.map((team) => (
-                <Card key={team.id}>
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-medium text-gray-900">{team.name}</h3>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClasses(team.status)}`}>
-                      {team.status.charAt(0).toUpperCase() + team.status.slice(1)}
-                    </span>
-                  </div>
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Users className="h-4 w-4 text-gray-500 mr-2" />
-                      <span>{team.members} team members</span>
+            {teams.map((team) => (
+              <Card key={team.id} className="hover:shadow-md transition-shadow">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between p-4">
+                  <div className="mb-4 lg:mb-0">
+                    <div className="flex items-center mb-2">
+                      <h3 className="text-lg font-medium text-gray-900 mr-3">{team.name}</h3>
+                      <span className={`${getStatusBadgeClasses(team.status)} px-2 py-1 rounded-full text-xs`}>
+                        {team.status}
+                      </span>
                     </div>
+                    <p className="text-gray-600">{team.members} Team Members</p>
                     {team.assignedIncident && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <AlertTriangle className="h-4 w-4 text-gray-500 mr-2" />
-                        <span>Assigned to {team.assignedIncident}</span>
-                      </div>
+                      <p className="text-sm text-gray-500">Assigned to: {team.assignedIncident}</p>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" size="sm" fullWidth>
-                      View Details
-                    </Button>
-                    <Button 
-                      variant={team.status === 'deployed' ? 'outline' : 'primary'} 
-                      size="sm" 
-                      fullWidth 
-                      disabled={team.status === 'deployed'}
-                    >
-                      {team.status === 'deployed' ? 'Deployed' : 'Dispatch'}
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                  <Button variant="outline" size="sm">View Team</Button>
+                </div>
+              </Card>
+            ))}
           </div>
         )}
       </div>

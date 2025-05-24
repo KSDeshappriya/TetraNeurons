@@ -1,20 +1,9 @@
 import React, { useState } from 'react';
-import { authService } from '../../services/auth';
-import { 
-  AlertTriangle, 
-  BarChart3, 
-  Users, 
-  MapPin, 
-  TrendingUp,
-  TrendingDown,
-  Truck,
-  StethoscopeIcon,
-  Building,
-  ArrowRight
-} from 'lucide-react';
+import { AlertTriangle, MapPin, Users } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import StatCard from '../../components/ui/StatCard';
-import Button from '../../components/ui/Button';
+import { authService } from '../../lib/auth';
 
 interface DisasterData {
   id: string;
@@ -37,7 +26,7 @@ interface RegionStatistics {
 
 const GovernmentDashboard: React.FC = () => {
   const token = authService.getTokenPayload();
-  const [activePeriod, setActivePeriod] = useState<'day' | 'week' | 'month'>('week');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'resources'>('overview');
   
   // Mock data
   const activeDisasters: DisasterData[] = [
@@ -95,271 +84,185 @@ const GovernmentDashboard: React.FC = () => {
     personnel: 380,
     averageResponseTime: '18 min'
   };
-
   return (
     <div className="py-6 px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Government Help Centre</h1>
-        <p className="text-gray-600 mt-1">Disaster Coordination Dashboard</p>
+        <h1 className="text-2xl font-bold text-gray-900">Welcome, {token?.name}</h1>
+        <p className="text-gray-600 mt-1">Government Operations Dashboard</p>
       </div>
 
-      {/* Stats Overview */}
+      {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard 
-          title="Active Disasters" 
+          title="Active Emergencies" 
           value={activeDisasters.filter(d => d.status === 'Active').length} 
           icon={AlertTriangle}
           variant="emergency"
-          change={{ 
-            value: 20, 
-            isPositive: false 
-          }}
-          footer="20% increase from last week"
         />
         <StatCard 
-          title="People Affected" 
-          value={activeDisasters.reduce((sum, disaster) => sum + disaster.peopleAffected, 0).toLocaleString()} 
+          title="Affected Areas" 
+          value={activeDisasters.reduce((sum, disaster) => sum + disaster.affectedAreas, 0)} 
+          icon={MapPin}
+          variant="warning"
+        />
+        <StatCard 
+          title="Deployed Resources" 
+          value={activeDisasters.reduce((sum, disaster) => sum + disaster.resourcesDeployed, 0)} 
           icon={Users}
           variant="info"
-          change={{ 
-            value: 15, 
-            isPositive: false 
-          }}
-          footer="15% increase from last week"
-        />
-        <StatCard 
-          title="Resources Deployed" 
-          value={activeDisasters.reduce((sum, disaster) => sum + disaster.resourcesDeployed, 0)} 
-          icon={Truck}
-          variant="warning"
-          change={{ 
-            value: 32, 
-            isPositive: false 
-          }}
-          footer="32% increase from last week"
         />
         <StatCard 
           title="Response Teams" 
           value={activeDisasters.reduce((sum, disaster) => sum + disaster.responseTeams, 0)} 
           icon={Users}
           variant="success"
-          change={{ 
-            value: 25, 
-            isPositive: false 
-          }}
-          footer="25% increase from last week"
         />
       </div>
 
-      {/* Active Disasters */}
-      <Card 
-        title="Active Disasters" 
-        subtitle="Current ongoing disaster events"
-        headerAction={
-          <Button 
-            variant="outline" 
-            size="sm"
-            rightIcon={<ArrowRight className="h-4 w-4" />}
+      {/* Dashboard Tabs */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'overview' 
+                ? 'border-primary-500 text-primary-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
           >
-            View All
-          </Button>
-        }
-        className="mb-8"
-      >
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Started</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Areas</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">People</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resources</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teams</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trend</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {activeDisasters.map((disaster) => (
-                <tr key={disaster.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{disaster.type}</div>
-                    <div className="text-xs text-gray-500">{disaster.id}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {disaster.startDate}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs rounded-full font-medium
-                      ${disaster.status === 'Active'
-                        ? 'bg-emergency-100 text-emergency-800'
-                        : disaster.status === 'Contained'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-success-100 text-success-800'
-                      }`}
-                    >
-                      {disaster.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {disaster.affectedAreas}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {disaster.peopleAffected.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {disaster.resourcesDeployed}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {disaster.responseTeams}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    {disaster.trend === 'improving' ? (
-                      <div className="flex items-center text-success-600">
-                        <TrendingDown className="h-5 w-5 mr-1" />
-                        <span className="text-xs font-medium">Improving</span>
-                      </div>
-                    ) : disaster.trend === 'worsening' ? (
-                      <div className="flex items-center text-emergency-600">
-                        <TrendingUp className="h-5 w-5 mr-1" />
-                        <span className="text-xs font-medium">Worsening</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center text-gray-600">
-                        <span className="text-xs font-medium">Stable</span>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Regional Overview & Resource Allocation */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        <Card 
-          title="Regional Overview" 
-          subtitle="Emergency cases by region"
-          className="lg:col-span-2"
-        >
-          <div className="space-y-4">
-            {regionStats.map((region) => (
-              <div key={region.region} className="flex items-center">
-                <div className="w-36 text-sm font-medium text-gray-900 truncate">
-                  {region.region}
-                </div>
-                <div className="flex-1">
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div 
-                      className="bg-primary-600 h-2.5 rounded-full" 
-                      style={{ width: `${Math.min(100, Math.max(5, region.activeCases * 4))}%` }}
-                    ></div>
-                  </div>
-                </div>
-                <div className="w-20 text-right text-sm font-medium text-gray-900">
-                  {region.activeCases} cases
-                </div>
-                <div className="w-16 text-right">
-                  <span className={`flex items-center justify-end text-xs ${region.isPositive ? 'text-success-600' : 'text-emergency-600'}`}>
-                    {region.isPositive ? (
-                      <>
-                        <TrendingDown className="h-3 w-3 mr-1" />
-                        {region.trend}%
-                      </>
-                    ) : (
-                      <>
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        {region.trend}%
-                      </>
-                    )}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card 
-          title="Resource Allocation" 
-          subtitle="Current deployment status"
-        >
-          <div className="mb-6">
-            <div className="flex justify-between mb-2">
-              <span className="text-sm text-gray-600">Resources Deployed</span>
-              <span className="text-sm font-medium text-gray-900">{Math.round((resourceStats.deployed / resourceStats.total) * 100)}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className="bg-primary-600 h-2.5 rounded-full" 
-                style={{ width: `${(resourceStats.deployed / resourceStats.total) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center">
-              <Truck className="h-5 w-5 text-gray-500 mr-3" />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">Total Resources</div>
-                <div className="text-sm text-gray-600">{resourceStats.total} units</div>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <Users className="h-5 w-5 text-gray-500 mr-3" />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">Personnel Available</div>
-                <div className="text-sm text-gray-600">{responseStats.personnel} people</div>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <StethoscopeIcon className="h-5 w-5 text-gray-500 mr-3" />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">Average Response Time</div>
-                <div className="text-sm text-gray-600">{responseStats.averageResponseTime}</div>
-              </div>
-            </div>
-          </div>
-        </Card>
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'reports' 
+                ? 'border-primary-500 text-primary-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Reports
+          </button>
+          <button
+            onClick={() => setActiveTab('resources')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'resources' 
+                ? 'border-primary-500 text-primary-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Resources
+          </button>
+        </nav>
       </div>
 
-      {/* Response Activity Chart */}
-      <Card 
-        title="Response Activity" 
-        subtitle="Activity trends for response operations"
-        headerAction={
-          <div className="flex space-x-2">
-            <button 
-              className={`px-3 py-1 text-xs rounded-md ${activePeriod === 'day' ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-100'}`}
-              onClick={() => setActivePeriod('day')}
-            >
-              Day
-            </button>
-            <button 
-              className={`px-3 py-1 text-xs rounded-md ${activePeriod === 'week' ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-100'}`}
-              onClick={() => setActivePeriod('week')}
-            >
-              Week
-            </button>
-            <button 
-              className={`px-3 py-1 text-xs rounded-md ${activePeriod === 'month' ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-100'}`}
-              onClick={() => setActivePeriod('month')}
-            >
-              Month
-            </button>
+      {/* Tab Content */}
+      <div>
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Emergency Alerts */}
+            {activeDisasters.filter(d => d.status === 'Active').length > 0 && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <strong className="font-bold">Active Emergency Situations!</strong>
+                <span className="block sm:inline"> There are ongoing emergency situations requiring immediate attention.</span>
+              </div>
+            )}
+
+            {/* Area Status Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {regionStats.map((region) => (
+                <Card key={region.region} className="hover:shadow-md transition-shadow">
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-medium text-gray-900">{region.region}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium
+                        ${region.isPositive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
+                      `}>
+                        {region.isPositive ? 'Stable' : 'Critical'}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-gray-600">Active Cases: {region.activeCases}</p>
+                      <p className="text-gray-600">Trend: 
+                        <span className={`font-medium 
+                          ${region.trend > 0 ? 'text-green-600' : region.trend < 0 ? 'text-red-600' : 'text-gray-600'}
+                        `}>
+                          {region.trend > 0 ? `+${region.trend}%` : `${region.trend}%`}
+                        </span>
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" className="mt-4">View Details</Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
           </div>
-        }
-      >
-        <div className="h-64 flex items-center justify-center bg-gray-50 rounded">
-          <div className="text-gray-500 flex flex-col items-center">
-            <BarChart3 className="h-16 w-16 mb-2 text-gray-300" />
-            <p>Response activity chart would display here</p>
-            <p className="text-sm">Based on {activePeriod} period</p>
+        )}
+
+        {activeTab === 'reports' && (
+          <div className="space-y-6">
+            {activeDisasters.map((disaster) => (
+              <Card key={disaster.id} className="hover:shadow-md transition-shadow">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">{disaster.type} Report</h3>
+                      <p className="text-sm text-gray-500">Generated on {new Date().toLocaleDateString()}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium
+                      ${disaster.status === 'Active' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}
+                    `}>
+                      {disaster.status}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 mb-4">
+                    This report provides an overview of the {disaster.type} situation, including affected areas, resources deployed, and response teams.
+                  </p>
+                  <div className="flex space-x-4">
+                    <Button variant="outline" size="sm">Download PDF</Button>
+                    <Button variant="outline" size="sm">Share Report</Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
-        </div>
-      </Card>
+        )}
+
+        {activeTab === 'resources' && (
+          <div className="space-y-6">
+            {regionStats.map((region) => (
+              <Card key={region.region} className="hover:shadow-md transition-shadow">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">{region.region} Resources</h3>
+                      <p className="text-sm text-gray-500">As of {new Date().toLocaleDateString()}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium
+                      ${region.isPositive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
+                    `}>
+                      {region.isPositive ? 'Stable' : 'Critical'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Total Resources</p>
+                      <p className="text-gray-900">{resourceStats.total} units</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Resources Deployed</p>
+                      <p className="text-gray-900">{resourceStats.deployed} units</p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-4">
+                    <Button variant="outline" size="sm">Allocate Resources</Button>
+                    <Button variant="outline" size="sm">View Resource Map</Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

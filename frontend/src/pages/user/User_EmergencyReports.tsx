@@ -9,8 +9,10 @@ import {
   ExternalLink,
   CheckCircle2,
   Clock3,
-  AlertCircle
+  AlertCircle,
+  Camera
 } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -29,6 +31,7 @@ interface EmergencyReport {
 }
 
 const EmergencyReports: React.FC = () => {
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -161,6 +164,32 @@ const EmergencyReports: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
+        {/* Navigation Tabs */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="flex space-x-8">
+            <Link
+              to="/user/reports"
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname === '/user/reports'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Emergency Reports
+            </Link>
+            <Link
+              to="/user/resources"
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname === '/user/resources'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              User Resources
+            </Link>
+          </nav>
+        </div>
+
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Emergency Reports</h1>
           <p className="text-gray-600 mt-1">View and track reports submitted by you and other users in your area</p>
