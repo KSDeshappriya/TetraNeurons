@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { MapPin, Eye, EyeOff } from 'lucide-react';
-import { authService} from '../services/auth';
-import type { UserSignup } from '../services/auth';
-import { useLocation } from '../hooks/useLocation';
+import { authService} from '../../services/auth';
+import type { UserSignup } from '../../services/auth';
+import { useLocation } from '../../hooks/useLocation';
 import { useNavigate } from 'react-router';
 
 const SignUp: React.FC = () => {
