@@ -110,7 +110,7 @@ const VideoFrameGrid: React.FC<VideoFrameGridProps> = ({ onImageReady, onClose }
         return;
       }
 
-      const frameSize = 200;
+      const frameSize = 400; // Increased from 200 for higher resolution
       canvas.width = frameSize * 3;
       canvas.height = frameSize * 3;
 
@@ -132,7 +132,6 @@ const VideoFrameGrid: React.FC<VideoFrameGridProps> = ({ onImageReady, onClose }
       for (let i = 0; i < frameTimes.length; i++) {
         const frameExtracted = await new Promise<boolean>((resolve) => {
           let resolved = false;
-          
           const timeout = setTimeout(() => {
             if (!resolved) {
               console.warn(`Frame ${i} extraction timeout`);
@@ -145,18 +144,29 @@ const VideoFrameGrid: React.FC<VideoFrameGridProps> = ({ onImageReady, onClose }
             if (!resolved) {
               clearTimeout(timeout);
               resolved = true;
-              
               try {
+                // Center crop to square for best quality
                 const row = Math.floor(i / 3);
                 const col = i % 3;
-                
-                // Check if video has valid dimensions
                 if (video.videoWidth > 0 && video.videoHeight > 0) {
-                  ctx.drawImage(video, col * frameSize, row * frameSize, frameSize, frameSize);
+                  const aspect = video.videoWidth / video.videoHeight;
+                  let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
+                  if (aspect > 1) {
+                    // Wider than tall
+                    sw = video.videoHeight;
+                    sx = (video.videoWidth - sw) / 2;
+                  } else if (aspect < 1) {
+                    sh = video.videoWidth;
+                    sy = (video.videoHeight - sh) / 2;
+                  }
+                  ctx.drawImage(
+                    video,
+                    sx, sy, sw, sh,
+                    col * frameSize, row * frameSize, frameSize, frameSize
+                  );
                   console.log(`Frame ${i} drawn successfully`);
                   resolve(true);
                 } else {
-                  console.warn(`Frame ${i} has invalid dimensions:`, video.videoWidth, 'x', video.videoHeight);
                   // Draw a placeholder rectangle
                   ctx.fillStyle = '#f0f0f0';
                   ctx.fillRect(col * frameSize, row * frameSize, frameSize, frameSize);
@@ -184,11 +194,10 @@ const VideoFrameGrid: React.FC<VideoFrameGridProps> = ({ onImageReady, onClose }
 
           video.addEventListener('seeked', onSeeked, { once: true });
           video.addEventListener('error', onError, { once: true });
-          
+
           // Set the time
           const timeToSet = frameTimes[i];
           console.log(`Seeking to frame ${i} at time ${timeToSet}`);
-          
           try {
             video.currentTime = timeToSet;
           } catch (err) {
@@ -198,12 +207,9 @@ const VideoFrameGrid: React.FC<VideoFrameGridProps> = ({ onImageReady, onClose }
             resolve(false);
           }
         });
-
         if (frameExtracted) {
           successfulFrames++;
         }
-
-        // Small delay between frames
         await new Promise(resolve => setTimeout(resolve, 200));
       }
 
@@ -216,7 +222,8 @@ const VideoFrameGrid: React.FC<VideoFrameGridProps> = ({ onImageReady, onClose }
         return;
       }
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      // Use highest quality for JPEG export
+      const dataUrl = canvas.toDataURL('image/jpeg', 1.0); // Quality set to 1.0 (max)
       
       if (dataUrl === 'data:,') {
         setError('Failed to generate image. Please try again.');

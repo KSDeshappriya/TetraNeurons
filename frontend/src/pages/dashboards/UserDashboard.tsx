@@ -24,13 +24,13 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import VideoFrameGrid from '../../components/VideoFrameGrid';
-import { sendEmergencyReport } from '../../services/emergency_service';
 import { Button } from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { Textarea } from '../../components/ui/Textarea';
 import { Select } from '../../components/ui/Select';
 import Alert from '../../components/ui/Alert';
 import StatCard from '../../components/ui/StatCard';
+import { sendEmergencyReport } from '../../services/emergency';
 
 interface SwitchProps {
   checked: boolean;
@@ -93,6 +93,10 @@ const UserDashboard: React.FC = () => {
   const [videoGridImage, setVideoGridImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
 
   const emergencyTypes: EmergencyType[] = [
     { id: 'flood', name: 'Flood', icon: Cloud },
@@ -135,14 +139,20 @@ const UserDashboard: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!emergencyActive) {
-      alert('Please activate emergency switch to report');
+      setAlertMessage('Please activate emergency switch to report');
+      setAlertOpen(true);
       return;
     }
     if (!emergencyType || !urgencyLevel || !situation || !peopleCount) {
-      alert('Please fill in all required fields');
+      setAlertMessage('Please fill in all required fields');
+      setAlertOpen(true);
       return;
     }
-    
+    if (!userLocation) {
+      setAlertMessage('Location is required. Please get your location.');
+      setAlertOpen(true);
+      return;
+    }
     setSubmitting(true);
     
     try {
@@ -250,6 +260,54 @@ const UserDashboard: React.FC = () => {
     { value: "50+", label: "More than 50 people" },
     { value: "unknown", label: "Unknown" },
   ];
+  const handleGetLocation = () => {
+    setLocationError(null);
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      () => {
+        setLocationError('Unable to retrieve your location.');
+      }
+    );
+  };
+
+  // Alert modal component
+  function AlertModal({ open, onClose, message }: { open: boolean; onClose: () => void; message: string }) {
+    if (!open) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full relative">
+          <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+          <div className="text-lg font-semibold mb-4">Alert</div>
+          <div className="mb-4 text-gray-800">{message}</div>
+          <button onClick={onClose} className="w-full bg-black text-white py-2 rounded hover:bg-gray-800">OK</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            User Dashboard
+          </h1>
+          <p className="text-gray-600">
+            Report emergencies and view nearby incidents
+          </p>
+        </div>
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
@@ -379,7 +437,6 @@ const UserDashboard: React.FC = () => {
                         rows={4}
                       />
                     </div>
-
                     {/* Number of People */}
                     <div>
                       <Select
@@ -389,6 +446,31 @@ const UserDashboard: React.FC = () => {
                         options={peopleOptions}
                       />
                     </div>
+        
+                 {/* User Location Button (Required, Map Marker Icon, Red Star) */}
+                  <div>
+                    <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-1">
+                      Your Location <span className="text-red-600">*</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5 text-black"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z" /></svg>
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <button
+                        type="button"
+                        onClick={handleGetLocation}
+                        className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 flex items-center gap-2 border border-white"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5 text-white"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z" /></svg>
+                        Get My Location
+                      </button>
+                      {userLocation && (
+                        <span className="text-black text-sm">Lat: {userLocation.latitude.toFixed(5)}, Lng: {userLocation.longitude.toFixed(5)}</span>
+                      )}
+                      {locationError && (
+                        <span className="text-red-600 text-sm">{locationError}</span>
+                      )}
+                    </div>
+                  </div>
+
 
                     {/* Video Record */}
                     <div>
@@ -637,6 +719,8 @@ const UserDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
+    <AlertModal open={alertOpen} onClose={() => setAlertOpen(false)} message={alertMessage} />
     </div>
   );
 };
