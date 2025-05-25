@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Users, Search, Filter, UserPlus, MapPin, Shield, Award, CheckCircle, Clock, Calendar, AlertCircle, Phone, Mail, Building, UserCheck, MessageCircle } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -223,6 +224,7 @@ const mockTeams: Team[] = [
 ];
 
 const Teams: React.FC = () => {
+  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -317,12 +319,47 @@ const Teams: React.FC = () => {
   const getTeamLead = (team: Team) => {
     return team.members.find(member => member.id === team.leadId);
   };
-
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Response Teams</h1>
         <p className="text-gray-600 mt-1">Manage and coordinate response teams in the field</p>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <Link 
+            to="/first_responder/incidents"
+            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              location.pathname === '/first_responder/incidents'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            View All Incidents
+          </Link>
+          <Link 
+            to="/first_responder/resources"
+            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              location.pathname === '/first_responder/resources'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Manage Resources
+          </Link>
+          <Link 
+            to="/first_responder/teams"
+            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              location.pathname === '/first_responder/teams'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Team Management
+          </Link>
+        </nav>
       </div>
 
       {/* Alert for team status update */}

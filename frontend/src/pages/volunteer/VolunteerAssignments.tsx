@@ -11,6 +11,7 @@ import {
   Filter,
   Search
 } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -32,6 +33,7 @@ interface Assignment {
 }
 
 const VolunteerAssignments: React.FC = () => {
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -194,10 +196,65 @@ const VolunteerAssignments: React.FC = () => {
     
     return matchesSearch && matchesStatus && matchesPriority && matchesTab;
   });
-
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
+        {/* Navigation Tabs */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="flex space-x-8">
+            <Link
+              to="/volunteer"
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname === '/volunteer'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Dashboard
+            </Link>
+            <Link
+              to="/volunteer/assignments"
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname.includes('/volunteer/assignments')
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Assignments
+            </Link>
+            <Link
+              to="/volunteer/resources"
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname.includes('/volunteer/resources')
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Resources
+            </Link>
+            <Link
+              to="/volunteer/communication"
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname.includes('/volunteer/communication')
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Communication
+            </Link>
+            <Link
+              to="/volunteer/training"
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname.includes('/volunteer/training')
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Training
+            </Link>
+          </nav>
+        </div>
+
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Volunteer Assignments</h1>
           <p className="text-gray-600 mt-1">View and manage your volunteer assignments for disaster response</p>

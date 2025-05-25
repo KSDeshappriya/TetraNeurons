@@ -29,17 +29,17 @@ import FirstResponderDashboard from './pages/dashboards/FirstResponderDashboard'
 import GovernmentDashboard from './pages/dashboards/GovernmentDashboard';
 
 // First Responder Pages
-import Incidents from './pages/first_responder/Incidents';
-import Resources from './pages/first_responder/Resources';
-import Teams from './pages/first_responder/Teams';
+import Incidents from './pages/first_responder/first_responder_Incidents';
+import Resources from './pages/first_responder/first_responder_Resources';
+import Teams from './pages/first_responder/first_responder_Teams';
 
 // Government Pages
-import Overview from './pages/government/Overview';
-import GovernmentResources from './pages/government/Resources';
-import Reports from './pages/government/Reports';
+import Overview from './pages/government/Government_Overview';
+import GovernmentResources from './pages/government/Government_Resources';
+import Reports from './pages/government/Government_Reports';
 
 // User Pages
-import EmergencyReports from './pages/user/EmergencyReports';
+import EmergencyReports from './pages/user/User_EmergencyReports';
 import UserResources from './pages/user/UserResources';
 
 // Volunteer Pages

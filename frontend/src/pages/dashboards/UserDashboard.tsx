@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { ChangeEvent } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   AlertTriangle, 
   Flame, 
@@ -22,7 +23,6 @@ import {
   Info
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import VideoFrameGrid from '../../components/VideoFrameGrid';
 import { Button } from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -82,6 +82,7 @@ type UrgencyType = 'Critical' | 'High Priority' | 'Medium Priority' | 'Low Prior
 type StatusType = 'Active' | 'Responding' | 'Contained';
 
 const UserDashboard: React.FC = () => {
+  const location = useLocation();
   const [emergencyActive, setEmergencyActive] = useState<boolean>(false);
   const [emergencyType, setEmergencyType] = useState<string>('');
   const [urgencyLevel, setUrgencyLevel] = useState<string>('');
@@ -308,12 +309,44 @@ const UserDashboard: React.FC = () => {
           </p>
         </div>
 
+</div></div></div>);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">User Dashboard</h1>
+          <p className="text-gray-600 mt-1">Report emergencies and access resources</p>
+        </div>
+          {/* Navigation Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <Link 
+              to="/user/reports"
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname === '/user/reports'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Emergency Reports
+            </Link>
+            <Link 
+              to="/user/resources"
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                location.pathname === '/user/resources'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Resources
+            </Link>
+          </nav>
+        </div>
+
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">          <StatCard 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <StatCard
             title="Active Emergencies"
             value="3"
             icon={AlertTriangle}
@@ -713,14 +746,13 @@ const UserDashboard: React.FC = () => {
                   leftIcon={<BookOpen />}
                 >
                   View All Safety Tips
-                </Button>
-              </div>
+                </Button>              </div>
             </Card>
           </div>
         </div>
       </div>
-    </div>
-    <AlertModal open={alertOpen} onClose={() => setAlertOpen(false)} message={alertMessage} />
+      
+      <AlertModal open={alertOpen} onClose={() => setAlertOpen(false)} message={alertMessage} />
     </div>
   );
 };
