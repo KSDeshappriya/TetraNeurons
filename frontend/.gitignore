@@ -24,4 +24,5 @@ dist-ssr
 *.sw?
 
 # developer files
+pnpm-lock.yaml
 others/
