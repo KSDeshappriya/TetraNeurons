@@ -6,7 +6,6 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss(),
   ],
   server: {
     host: '0.0.0.0', // Listen on all addresses, including LAN

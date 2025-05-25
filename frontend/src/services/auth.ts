@@ -39,6 +39,8 @@ export interface UserProfile {
 export interface UserLogin {
   email: string;
   password: string;
+  latitude: number;
+  longitude: number;
 }
 
 export interface Token {

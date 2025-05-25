@@ -6,6 +6,7 @@ from datetime import datetime
 import bcrypt
 import uuid
 import yaml
+import geohash
 
 with open("trusted_domain.yaml", "r") as file:
     TRUSTED_DOMAINS = yaml.safe_load(file)
@@ -78,7 +79,7 @@ class AuthService:
             raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
-
+        
     def login_user(self, login_data: UserLogin):
         try:
             users = self.db.collection("users").where("email", "==", login_data.email).get()
@@ -88,10 +89,20 @@ class AuthService:
             
             user_doc = users[0]
             user_data = user_doc.to_dict()
-
             
             if not self.verify_password(login_data.password, user_data["password_hash"]):
                 raise HTTPException(status_code=401, detail="Invalid email or password")
+            
+            # Calculate and update user's geohash
+            geohash_value = geohash.encode(login_data.latitude, login_data.longitude,precision=6)
+            
+            # Update user's location and geohash in Firestore
+            self.db.collection("users").document(user_data["uid"]).update({
+                "latitude": login_data.latitude,
+                "longitude": login_data.longitude,
+                "geohash": geohash_value,
+                "last_location_update": datetime.now().isoformat()
+            })
             
             token_payload = {
                 "uid": str(user_data["uid"]),
@@ -99,6 +110,8 @@ class AuthService:
                 "role": str(user_data["role"]),
                 "name": str(user_data["name"])
             }
+
+            
             
             try:
                 access_token = self.jwt_service.create_access_token(data=token_payload)

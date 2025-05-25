@@ -66,7 +66,9 @@ Content-Type: application/json
 
 {
   "email": "gov.official@example.com",
-  "password": "securepassword"
+  "password": "securepassword",
+  "latitude": 40.7128,
+  "longitude": -74.0060,
 }
 
 ### Test the login endpoint for a correct password
@@ -75,7 +77,9 @@ Content-Type: application/json
 
 {
   "email": "john@example.com",
-  "password": "password123"
+  "password": "password123",
+  "latitude": 40.7128,
+  "longitude": -74.0060
 }
 
 ### test routes authentification

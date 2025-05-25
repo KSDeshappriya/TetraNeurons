@@ -1,382 +1,419 @@
 import React, { useRef, useState } from 'react';
 
-const VideoFrameGrid: React.FC = () => {
+interface VideoFrameGridProps {
+  onImageReady: (imageDataUrl: string) => void;
+  onClose: () => void;
+}
+
+const VideoFrameGrid: React.FC<VideoFrameGridProps> = ({ onImageReady, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const chunksRef = useRef<Blob[]>([]); // Use ref instead of state for chunks
+  const [recording, setRecording] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [autoStarted, setAutoStarted] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [cameraStarted, setCameraStarted] = useState(false);
+  const [resultImage, setResultImage] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
 
-  const startCamera = async () => {
+  const processVideo = async () => {
+    setProcessing(true);
+    console.log('Starting video processing, chunks:', chunksRef.current.length);
+    
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 1280, height: 720 }, 
-        audio: false 
-      });
-      streamRef.current = stream;
-      
-      if (videoPreviewRef.current) {
-        videoPreviewRef.current.srcObject = stream;
-        videoPreviewRef.current.play();
+      if (chunksRef.current.length === 0) {
+        setError('No video data recorded. Please try again.');
+        setProcessing(false);
+        return;
       }
-      setCameraStarted(true);
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      alert('Unable to access camera. Please check permissions.');
-    }
-  };
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setCameraStarted(false);
-    if (videoPreviewRef.current) {
-      videoPreviewRef.current.srcObject = null;
+      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      console.log('Blob created, size:', blob.size, 'type:', blob.type);
+      
+      if (blob.size === 0) {
+        setError('No video data recorded. Please try again.');
+        setProcessing(false);
+        return;
+      }
+
+      const video = document.createElement('video');
+      const videoUrl = URL.createObjectURL(blob);
+      video.src = videoUrl;
+      video.muted = true;
+      video.preload = 'auto';
+      video.crossOrigin = 'anonymous';
+
+      // Wait for video to be ready with multiple attempts
+      let duration = 0;
+      let attempts = 0;
+      const maxAttempts = 5;
+
+      // Ensure video metadata is loaded before accessing duration
+      while ((duration <= 0 || isNaN(duration)) && attempts < maxAttempts) {
+        attempts++;
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            resolve();
+          }, 3000);
+
+          const onReady = () => {
+            clearTimeout(timeout);
+            duration = video.duration;
+            resolve();
+          };
+
+          if (video.readyState >= 1) {
+            onReady();
+          } else {
+            video.addEventListener('loadedmetadata', onReady, { once: true });
+            video.addEventListener('loadeddata', onReady, { once: true });
+            video.addEventListener('canplay', onReady, { once: true });
+          }
+
+          video.onerror = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+
+          video.load();
+        });
+        if ((duration <= 0 || isNaN(duration)) && attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      console.log('Final duration after', attempts, 'attempts:', duration);
+      
+      // If we still don't have a valid duration, try a different approach
+      if (!duration || duration <= 0 || isNaN(duration) || !isFinite(duration)) {
+        console.log('Duration invalid, trying alternative approach...');
+        
+        // Try to estimate duration from recording time (we know it should be ~9 seconds)
+        duration = 9.0; // Use the expected duration
+        console.log('Using estimated duration:', duration);
+      }
+
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        setError('Canvas not available');
+        setProcessing(false);
+        URL.revokeObjectURL(videoUrl);
+        return;
+      }
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        setError('Canvas context not available');
+        setProcessing(false);
+        URL.revokeObjectURL(videoUrl);
+        return;
+      }
+
+      const frameSize = 400; // Increased from 200 for higher resolution
+      canvas.width = frameSize * 3;
+      canvas.height = frameSize * 3;
+
+      // Clear canvas with white background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Create frame times - simple approach
+      const frameTimes: number[] = [];
+      for (let i = 0; i < 9; i++) {
+        const time = (i / 8) * Math.max(duration - 0.5, 8);
+        frameTimes.push(Math.max(0, Math.min(time, duration - 0.1)));
+      }
+
+      console.log('Frame times:', frameTimes);
+
+      let successfulFrames = 0;
+
+      for (let i = 0; i < frameTimes.length; i++) {
+        const frameExtracted = await new Promise<boolean>((resolve) => {
+          let resolved = false;
+          const timeout = setTimeout(() => {
+            if (!resolved) {
+              console.warn(`Frame ${i} extraction timeout`);
+              resolved = true;
+              resolve(false);
+            }
+          }, 5000);
+
+          const onSeeked = () => {
+            if (!resolved) {
+              clearTimeout(timeout);
+              resolved = true;
+              try {
+                // Center crop to square for best quality
+                const row = Math.floor(i / 3);
+                const col = i % 3;
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                  const aspect = video.videoWidth / video.videoHeight;
+                  let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
+                  if (aspect > 1) {
+                    // Wider than tall
+                    sw = video.videoHeight;
+                    sx = (video.videoWidth - sw) / 2;
+                  } else if (aspect < 1) {
+                    sh = video.videoWidth;
+                    sy = (video.videoHeight - sh) / 2;
+                  }
+                  ctx.drawImage(
+                    video,
+                    sx, sy, sw, sh,
+                    col * frameSize, row * frameSize, frameSize, frameSize
+                  );
+                  console.log(`Frame ${i} drawn successfully`);
+                  resolve(true);
+                } else {
+                  // Draw a placeholder rectangle
+                  ctx.fillStyle = '#f0f0f0';
+                  ctx.fillRect(col * frameSize, row * frameSize, frameSize, frameSize);
+                  ctx.fillStyle = '#666';
+                  ctx.font = '16px Arial';
+                  ctx.textAlign = 'center';
+                  ctx.fillText(`Frame ${i + 1}`, col * frameSize + frameSize/2, row * frameSize + frameSize/2);
+                  resolve(true);
+                }
+              } catch (err) {
+                console.error(`Error drawing frame ${i}:`, err);
+                resolve(false);
+              }
+            }
+          };
+
+          const onError = () => {
+            if (!resolved) {
+              console.error(`Error seeking to frame ${i}`);
+              clearTimeout(timeout);
+              resolved = true;
+              resolve(false);
+            }
+          };
+
+          video.addEventListener('seeked', onSeeked, { once: true });
+          video.addEventListener('error', onError, { once: true });
+
+          // Set the time
+          const timeToSet = frameTimes[i];
+          console.log(`Seeking to frame ${i} at time ${timeToSet}`);
+          try {
+            video.currentTime = timeToSet;
+          } catch (err) {
+            console.error(`Error setting currentTime for frame ${i}:`, err);
+            resolved = true;
+            clearTimeout(timeout);
+            resolve(false);
+          }
+        });
+        if (frameExtracted) {
+          successfulFrames++;
+        }
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      console.log(`Successfully extracted ${successfulFrames} out of 9 frames`);
+
+      if (successfulFrames === 0) {
+        setError('Failed to extract any video frames. Please try again.');
+        setProcessing(false);
+        URL.revokeObjectURL(videoUrl);
+        return;
+      }
+
+      // Use highest quality for JPEG export
+      const dataUrl = canvas.toDataURL('image/jpeg', 1.0); // Quality set to 1.0 (max)
+      
+      if (dataUrl === 'data:,') {
+        setError('Failed to generate image. Please try again.');
+      } else {
+        setResultImage(dataUrl);
+        console.log('Frame grid generated successfully with', successfulFrames, 'frames');
+      }
+      
+      // Clean up
+      URL.revokeObjectURL(videoUrl);
+      
+    } catch (err) {
+      console.error('Error processing video:', err);
+      setError(`Failed to process video: ${err instanceof Error ? err.message : String(err)}. Please try again.`);
+    } finally {
+      setProcessing(false);
     }
   };
 
   const startRecording = async () => {
-    if (!streamRef.current) return;
-
-    const chunks: BlobPart[] = [];
+    setError(null);
+    chunksRef.current = []; // Reset chunks
+    setResultImage(null);
+    setProcessing(false);
     
-    // Try different codec options for better compatibility
-    let mediaRecorder;
-    const options = [
-      { mimeType: 'video/mp4' },
-      { mimeType: 'video/webm;codecs=vp9' },
-      { mimeType: 'video/webm;codecs=vp8' },
-      { mimeType: 'video/webm' }
-    ];
-
-    for (const option of options) {
-      if (MediaRecorder.isTypeSupported(option.mimeType)) {
-        mediaRecorder = new MediaRecorder(streamRef.current, option);
-        console.log('Using codec:', option.mimeType);
-        break;
-      }
-    }
-
-    if (!mediaRecorder) {
-      mediaRecorder = new MediaRecorder(streamRef.current);
-      console.log('Using default codec');
-    }
-
-    mediaRecorderRef.current = mediaRecorder;
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        chunks.push(event.data);
-      }
-    };
-
-    mediaRecorder.onstop = async () => {
-      const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'video/webm' });
-      console.log('Recording finished, blob:', { type: blob.type, size: blob.size });
-      setRecordedBlob(blob);
-      setIsRecording(false);
-      stopCamera();
-      
-      // Automatically process the recorded video
-      await processVideoFrames(blob);
-    };
-
-    // Start countdown
-    setCountdown(3);
-    const countdownInterval = setInterval(() => {
-      setCountdown(prev => {
-        if (prev === 1) {
-          clearInterval(countdownInterval);
-          // Start actual recording
-          console.log('Starting recording...');
-          mediaRecorder.start(1000); // Record in 1-second chunks
-          setIsRecording(true);
-          
-          // Stop recording after 10 seconds
-          setTimeout(() => {
-            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-              console.log('Stopping recording...');
-              mediaRecorderRef.current.stop();
-            }
-          }, 10000);
-          
-          return null;
-        }
-        return prev ? prev - 1 : null;
-      });
-    }, 1000);
-  };
-
-  const processVideoFrames = async (videoBlob: Blob) => {
     try {
-      const video = document.createElement('video');
-      video.src = URL.createObjectURL(videoBlob);
-      video.muted = true;
-      video.preload = 'metadata';
-      video.crossOrigin = 'anonymous';
-      
-      console.log('Video blob type:', videoBlob.type);
-      console.log('Video blob size:', videoBlob.size);
-
-      // Wait for metadata to load with timeout and multiple attempts
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Video metadata loading timeout'));
-        }, 15000);
-
-        let attempts = 0;
-        const checkMetadata = () => {
-          attempts++;
-          console.log(`Metadata check attempt ${attempts}, duration: ${video.duration}, readyState: ${video.readyState}`);
-          
-          if (video.duration && isFinite(video.duration) && video.duration > 0) {
-            clearTimeout(timeout);
-            resolve();
-          } else if (attempts < 10) {
-            setTimeout(checkMetadata, 100);
-          }
-        };
-
-        video.onloadedmetadata = () => {
-          console.log('Metadata loaded event fired');
-          checkMetadata();
-        };
-
-        video.onloadeddata = () => {
-          console.log('Data loaded event fired');
-          checkMetadata();
-        };
-
-        video.oncanplay = () => {
-          console.log('Can play event fired');
-          checkMetadata();
-        };
-
-        video.onerror = (e) => {
-          clearTimeout(timeout);
-          console.error('Video error:', e);
-          reject(new Error('Failed to load video'));
-        };
-
-        // Start initial check
-        setTimeout(checkMetadata, 100);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        }, 
+        audio: false 
       });
-
-      const duration = video.duration;
       
-      // Final validation
-      if (!duration || !isFinite(duration) || duration <= 0) {
-        throw new Error(`Invalid video duration: ${duration}. Video may be corrupted or in unsupported format.`);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
       }
 
-      console.log('Video duration:', duration);
-      
-      // Generate frame times, ensuring they're valid
-      const frameTimes = Array.from({ length: 9 }, (_, i) => {
-        const time = (i / 8) * duration;
-        return Math.min(time, duration - 0.1); // Ensure we don't exceed duration
-      });
-
-      console.log('Frame times:', frameTimes);
-
-      const frameSize = 600;
-      const canvas = canvasRef.current;
-      if (!canvas) throw new Error('Canvas not available');
-      
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas context not available');
-      
-      canvas.width = frameSize * 3;
-      canvas.height = frameSize * 3;
-
-      // Clear canvas
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      for (let i = 0; i < frameTimes.length; i++) {
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            reject(new Error(`Seek timeout for frame ${i}`));
-          }, 5000);
-
-          const seekTime = frameTimes[i];
-          
-          video.onseeked = () => {
-            clearTimeout(timeout);
-            try {
-              const row = Math.floor(i / 3);
-              const col = i % 3;
-              ctx.drawImage(video, col * frameSize, row * frameSize, frameSize, frameSize);
-              resolve();
-            } catch (error) {
-              reject(error);
-            }
-          };
-
-          video.onerror = () => {
-            clearTimeout(timeout);
-            reject(new Error(`Video error during seek for frame ${i}`));
-          };
-
-          // Validate seek time before setting
-          if (isFinite(seekTime) && seekTime >= 0 && seekTime < duration) {
-            video.currentTime = seekTime;
-          } else {
-            clearTimeout(timeout);
-            reject(new Error(`Invalid seek time: ${seekTime}`));
-          }
-        });
+      // Check for MediaRecorder support and try different MIME types
+      let mimeType = 'video/webm;codecs=vp8';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        if (MediaRecorder.isTypeSupported('video/webm')) {
+          mimeType = 'video/webm';
+        } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+          mimeType = 'video/mp4';
+        } else {
+          throw new Error('No supported video format found');
+        }
       }
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-      setImageSrc(dataUrl);
-      URL.revokeObjectURL(video.src);
+      console.log('Using MIME type:', mimeType);
+
+      const recorder = new MediaRecorder(stream, { 
+        mimeType: mimeType,
+        videoBitsPerSecond: 1000000 // 1 Mbps - lower for better compatibility
+      });
       
-    } catch (error) {
-      console.error('Error processing video frames:', error);
-      alert(`Error processing video: ${error instanceof Error ? error.message : String(error)}`);
+      mediaRecorderRef.current = recorder;
+      
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+          console.log('Chunk received:', e.data.size, 'bytes');
+        }
+      };
+      
+      recorder.onstop = () => {
+        console.log('Recording stopped, total chunks:', chunksRef.current.length);
+        stream.getTracks().forEach((track) => track.stop());
+        processVideo();
+      };
+
+      recorder.onerror = (e) => {
+        console.error('MediaRecorder error:', e);
+        setError('Recording failed. Please try again.');
+      };
+
+      // Start recording with larger chunks for better data integrity
+      recorder.start(1000); // Request data every 1 second instead of 100ms
+      setRecording(true);
+      
+      // Countdown logic
+      let seconds = 9;
+      setCountdown(seconds);
+      const interval = setInterval(() => {
+        seconds--;
+        setCountdown(seconds);
+        if (seconds <= 0) {
+          clearInterval(interval);
+        }
+      }, 1000);
+
+      // Stop recording after 9 seconds
+      setTimeout(() => {
+        if (recorder.state === 'recording') {
+          recorder.stop();
+        }
+        setRecording(false);
+        setCountdown(null);
+      }, 9000);
+
+    } catch (err) {
+      console.error('Camera access error:', err);
+      setError('Camera access denied or not available.');
+      setCountdown(null);
     }
   };
 
-  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    await processVideoFrames(file);
-  };
-
-  // Removing unused function
-  const resetRecording = () => {
-    setRecordedBlob(null);
-    setImageSrc(null);
-    setCountdown(null);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    if (!autoStarted) {
+      setAutoStarted(true);
+      startRecording();
+    }
+    // We intentionally do not add startRecording to deps to avoid repeated calls
+    // eslint-disable-next-line
+  }, [autoStarted]);
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6 text-center">Create Video Frame Grid</h2>
+    <div className="p-4 border rounded bg-white shadow relative max-w-2xl mx-auto">
+      {error && <div className="text-red-600 mb-2 p-2 bg-red-50 rounded">{error}</div>}
       
-      {/* Upload Section */}
-      <div className="mb-8 p-4 border rounded-lg bg-gray-50">
-        <h3 className="text-lg font-semibold mb-3">Upload Video File</h3>
-        <input 
-          type="file" 
-          accept="video/*" 
-          onChange={handleVideoUpload} 
-          className="w-full p-2 border rounded"
-        />
-      </div>
-
-      {/* Recording Section */}
-      <div className="mb-8 p-4 border rounded-lg bg-blue-50">
-        <h3 className="text-lg font-semibold mb-3">Record 10-Second Video</h3>
-        
-        {!cameraStarted && !recordedBlob && (
-          <button
-            onClick={startCamera}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded font-medium"
-          >
-            Start Camera
-          </button>
-        )}
-
-        {cameraStarted && (
-          <div className="space-y-4">
-            <div className="relative">
-              <video
-                ref={videoPreviewRef}
-                className="w-full max-w-md mx-auto rounded border"
-                autoPlay
-                muted
-                playsInline
-              />
-              {countdown && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
-                  <span className="text-6xl font-bold text-white">{countdown}</span>
-                </div>
-              )}
-              {isRecording && (
-                <div className="absolute top-4 right-4 flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-white font-medium bg-red-500 px-2 py-1 rounded text-sm">REC</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex justify-center space-x-3">
-              {!isRecording && !countdown && (
-                <button
-                  onClick={startRecording}
-                  className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded font-medium"
-                >
-                  Record 10s Video
-                </button>
-              )}
-              
-              <button
-                onClick={stopCamera}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded font-medium"
-              >
-                Stop Camera
-              </button>
-            </div>
-          </div>
-        )}
-
-        {recordedBlob && !imageSrc && (
-          <div className="space-y-4">
-            <div className="p-3 bg-blue-100 border border-blue-300 rounded">
-              <p className="text-blue-700 font-medium">🎬 Processing video frames...</p>
-            </div>
-          </div>
-        )}
-
-        {recordedBlob && imageSrc && (
-          <div className="space-y-4">
-            <div className="p-3 bg-green-100 border border-green-300 rounded">
-              <p className="text-green-700 font-medium">✓ Video processed successfully!</p>
-            </div>
-            <div className="flex justify-center">
-              <button
-                onClick={resetRecording}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded font-medium"
-              >
-                Record Again
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Hidden Canvas */}
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-
-      {/* Results */}
-      {imageSrc && (
-        <div className="mt-8 text-center">
-          <h3 className="text-xl font-semibold mb-4">Generated 3x3 Frame Grid</h3>
+      {resultImage ? (
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Generated Frame Grid:</h3>
           <img 
-            src={imageSrc} 
+            src={resultImage} 
             alt="Frame Grid" 
-            className="border rounded shadow-lg mx-auto max-w-full"
+            className="border rounded shadow mb-4 w-full max-w-md mx-auto block" 
           />
-          <div className="mt-4">
-            <a
-              href={imageSrc}
-              download="video-frame-grid.jpg"
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded font-medium inline-block"
+          <div className="flex gap-2 justify-center">
+            <button 
+              onClick={startRecording} 
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              disabled={recording || processing}
             >
-              Download Frame Grid
-            </a>
+              Retry
+            </button>
+            <button 
+              onClick={() => { onImageReady(resultImage); onClose(); }} 
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+            >
+              Use This Image
+            </button>
           </div>
         </div>
+      ) : (
+        <div className="text-center">
+          <video 
+            ref={videoRef} 
+            autoPlay 
+            playsInline 
+            muted
+            className="w-full max-w-md mb-4 rounded border" 
+            style={{ display: recording ? 'block' : 'none' }} 
+          />
+          
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          
+          {recording && (
+            <div className="text-blue-700 font-semibold mb-4 text-xl">
+              Recording... {countdown !== null ? `${countdown}s` : ''}
+            </div>
+          )}
+          
+          {processing && (
+            <div className="text-orange-600 font-semibold mb-4">
+              Processing video frames...
+            </div>
+          )}
+          
+          {!recording && !processing && (
+            <button 
+              onClick={startRecording} 
+              className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-semibold"
+            >
+              Start Recording
+            </button>
+          )}
+        </div>
       )}
+      
+      <button 
+        onClick={onClose} 
+        className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-2xl w-8 h-8 flex items-center justify-center"
+      >
+        &times;
+      </button>
     </div>
   );
 };
