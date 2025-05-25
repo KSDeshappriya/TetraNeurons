@@ -76,10 +76,10 @@ POST http://localhost:8000/auth/login
 Content-Type: application/json
 
 {
-  "email": "john@example.com",
-  "password": "password123",
-  "latitude": 40.7128,
-  "longitude": -74.0060
+  "email": "user@example.com",
+  "password": "securepass123",
+  "latitude": 37.7749,
+  "longitude": -122.4194
 }
 
 ### test routes authentification

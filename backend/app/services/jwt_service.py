@@ -1,4 +1,4 @@
-import jwt
+from jwt import ExpiredSignatureError, DecodeError, InvalidTokenError,encode,decode
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import HTTPException
@@ -20,14 +20,16 @@ class JWTService:
             expire = datetime.utcnow() + timedelta(minutes=self.access_token_expire_minutes)
         
         to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
+        encoded_jwt = encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
     
     def verify_token(self, token: str):
         try:
-            payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+            if token.startswith("Bearer "):
+                token = token[7:]
+            payload = decode(token, self.secret_key, algorithms=[self.algorithm])
             return payload
-        except jwt.ExpiredSignatureError:
+        except ExpiredSignatureError:
             raise HTTPException(status_code=401, detail="Token has expired")
-        except jwt.JWTError:
+        except (DecodeError, InvalidTokenError):
             raise HTTPException(status_code=401, detail="Invalid token")

@@ -3,12 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Shield, 
   Users, 
-  AlertTriangle, 
   MapPin, 
   MessageSquare, 
   BarChart3,
   ArrowRight,
-  CheckCircle,
   Globe,
   Clock,
   UserCheck
@@ -18,7 +16,7 @@ const Home: React.FC = () => {
   const navigate = useNavigate();
 
   const handleGetStarted = () => {
-    navigate('/dashboard');
+    navigate('/auth/signin');
   };
 
   const features = [
@@ -127,9 +125,7 @@ const Home: React.FC = () => {
               Explore System
               <ArrowRight className="ml-3 h-5 w-5" />
             </button>
-            <button className="inline-flex items-center px-8 py-4 border border-gray-300 text-lg font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
-              Watch Demo
-            </button>
+            
           </div>
         </div>
       </section>
@@ -184,35 +180,6 @@ const Home: React.FC = () => {
                 <p className="text-gray-600 text-sm">{role.description}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Statistics Section */}
-      <section className="py-20 bg-blue-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h3 className="text-3xl font-bold text-white mb-4">
-              Making a Real Impact
-            </h3>
-            <p className="text-lg text-blue-100 max-w-2xl mx-auto">
-              See how our platform is transforming disaster response and emergency management worldwide.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-2">99.9%</div>
-              <div className="text-blue-100">System Uptime</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-2">24/7</div>
-              <div className="text-blue-100">Emergency Monitoring</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-2">Real-time</div>
-              <div className="text-blue-100">Coordination</div>
-            </div>
           </div>
         </div>
       </section>

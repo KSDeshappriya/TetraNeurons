@@ -1,281 +1,320 @@
-import React from 'react';
-import { 
+import React, { useEffect, useState } from 'react';
+import {
   Home,
-  AlertTriangle,
-  Users,
-  BarChart3,
-  User,
   MessageSquare,
-  Settings,
   Bell,
   Shield,
-  Globe,
-  ChevronDown,
-  LogOut,
   Menu,
   X,
+  Users,
+  AlertTriangle,
+  Settings,
+  BarChart3,
 } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router';
+import { authService} from '../../services/auth';
+import type { UserRole, } from '../../services/auth';
 
-interface NavItem {
-  name: string;
-  href: string;
-  icon: any;
-  subItems?: { name: string; href: string; }[];
-}
 
-interface NavigationBarProps {
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
-  notificationsOpen: boolean;
-  setNotificationsOpen: (open: boolean) => void;
-  userMenuOpen: boolean;
-  setUserMenuOpen: (open: boolean) => void;
-}
-
-const NavigationBar: React.FC<NavigationBarProps> = ({
-  sidebarOpen,
-  setSidebarOpen,
-  notificationsOpen,
-  setNotificationsOpen,
-  userMenuOpen,
-  setUserMenuOpen,
-}) => {
+const NavigationBar: React.FC = () => {
   const location = useLocation();
+  const [userName, setUserName] = useState<string>('User');
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  const getNavItems = (): NavItem[] => {
-    return [
-      { 
-        name: 'Dashboard', 
-        href: '/dashboard', 
-        icon: Home 
+  useEffect(() => {
+    // Get user info from token
+    const tokenPayload = authService.getTokenPayload();
+    if (tokenPayload) {
+      setUserName(tokenPayload.name || 'User');
+      setUserRole(tokenPayload.role);
+    }
+  }, []);
+
+  // Role-based navigation items
+  const getNavItems = () => {
+    const baseItems = [
+      {
+        name: 'Dashboard',
+        href: '/dashboard',
+        icon: Home,
+        roles: ['user', 'volunteer', 'first_responder', 'government'] as UserRole[],
       },
-      { 
-        name: 'User', 
-        href: '/user', 
-        icon: AlertTriangle,
-        subItems: [
-          { name: 'Dashboard', href: '/user' },
-          { name: 'Emergency Reports', href: '/user/reports' },
-          { name: 'Resources', href: '/user/resources' },
-          { name: 'Communication', href: '/user/communication' }
-        ]
+      {
+        name: 'Communication',
+        href: '/communication',
+        icon: MessageSquare,
+        roles: ['user', 'volunteer', 'first_responder', 'government'] as UserRole[],
       },
-      { 
-        name: 'Volunteer', 
-        href: '/volunteer', 
-        icon: Users,
-        subItems: [
-          { name: 'Dashboard', href: '/volunteer' },
-          { name: 'Assignments', href: '/volunteer/assignments' },
-          { name: 'Resources', href: '/volunteer/resources' },
-          { name: 'Communication', href: '/volunteer/communication' },
-          { name: 'Training', href: '/volunteer/training' }
-        ]
-      },
-      { 
-        name: 'First Responder', 
-        href: '/first_responder', 
-        icon: Shield,
-        subItems: [
-          { name: 'Dashboard', href: '/first_responder' },
-          { name: 'Incidents', href: '/first_responder/incidents' },
-          { name: 'Teams', href: '/first_responder/teams' },
-          { name: 'Resources', href: '/first_responder/resources' },
-          { name: 'Communication', href: '/first_responder/communication' },
-          { name: 'Analytics', href: '/first_responder/analytics' }
-        ]
-      },
-      { 
-        name: 'Government', 
-        href: '/government', 
-        icon: Globe,
-        subItems: [
-          { name: 'Dashboard', href: '/government' },
-          { name: 'Overview', href: '/government/overview' },
-          { name: 'Reports', href: '/government/reports' },
-          { name: 'Resources', href: '/government/resources' },
-          { name: 'Analytics', href: '/government/analytics' },
-          { name: 'Policies', href: '/government/policies' }
-        ]
-      },
-      { 
-        name: 'Communication', 
-        href: '/communication', 
-        icon: MessageSquare 
-      },
-      { 
-        name: 'Profile', 
-        href: '/profile', 
-        icon: User 
-      },
-      { 
-        name: 'Settings', 
-        href: '/settings', 
-        icon: Settings 
-      }
     ];
+
+    // Add role-specific items
+    const roleSpecificItems = [
+      {
+        name: 'Emergency Response',
+        href: '/emergency',
+        icon: AlertTriangle,
+        roles: ['first_responder'] as UserRole[],
+      },
+      {
+        name: 'Volunteer Management',
+        href: '/volunteers',
+        icon: Users,
+        roles: ['government'] as UserRole[],
+      },
+      {
+        name: 'Analytics',
+        href: '/analytics',
+        icon: BarChart3,
+        roles: ['government', 'first_responder'] as UserRole[],
+      },
+      {
+        name: 'Settings',
+        href: '/settings',
+        icon: Settings,
+        roles: ['government'] as UserRole[],
+      },
+    ];
+
+    const allItems = [...baseItems, ...roleSpecificItems];
+    
+    // Filter items based on user role
+    return allItems.filter(item => 
+      !userRole || item.roles.includes(userRole)
+    );
   };
 
   const navItems = getNavItems();
 
-  const mockNotifications = [
-    {
-      id: 1,
-      title: 'New emergency report nearby',
-      description: 'Flooding reported 0.5 miles from your location',
-      time: '5 minutes ago',
-      type: 'emergency'
-    },
-    {
-      id: 2,
-      title: 'Status update',
-      description: 'Your last report has been reviewed by authorities',
-      time: '1 hour ago',
-      type: 'info'
-    },
-    {
-      id: 3,
-      title: 'New assignment',
-      description: 'You have been assigned to help with evacuation',
-      time: '2 hours ago',
-      type: 'assignment'
+  // Handle role-based dashboard redirect
+  const getDashboardUrl = () => {
+    switch (userRole) {
+      case 'government':
+        return '/government';
+      case 'first_responder':
+        return '/responder';
+      case 'volunteer':
+        return '/volunteer';
+      default:
+        return '/user';
     }
-  ];
+  };
+
+  // Close sidebar when clicking outside
+  const handleBackdropClick = () => {
+    setSidebarOpen(false);
+  };
+
+  // Prevent event bubbling when clicking inside sidebar
+  const handleSidebarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
 
   return (
     <>
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-20 bg-gray-600 bg-opacity-50 transition-opacity lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        ></div>
+        <div
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity lg:hidden"
+          onClick={handleBackdropClick}
+        />
       )}
 
       {/* Mobile sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform 
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:w-64
-      `}>
+      <div
+        className={`
+          fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          transition-transform duration-300 ease-in-out lg:hidden
+        `}
+        style={{ transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)' }}
+        onClick={handleSidebarClick}
+      >
         {/* Sidebar header */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-          <div className="flex items-center">
+        <div className="flex items-center justify-between h-16 px-3 border-b border-gray-200 bg-white">
+          <div className="flex items-center min-w-0">
             <div className="flex-shrink-0">
-              <div className="p-2 bg-blue-600 rounded-lg">
-                <Shield className="h-6 w-6 text-white" />
+              <div className="p-1.5 bg-blue-600 rounded-lg">
+                <Shield className="h-5 w-5 text-white" />
               </div>
             </div>
-            <div className="ml-2 text-xl font-semibold text-blue-600">TetraNeurons</div>
+            <div className="ml-2 text-lg font-semibold text-blue-600 truncate">TetraNeurons</div>
           </div>
-          <button 
-            onClick={() => setSidebarOpen(false)} 
-            className="lg:hidden p-1"
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1 rounded-md hover:bg-gray-100 flex-shrink-0"
             title="Close sidebar"
           >
-            <X className="h-6 w-6 text-gray-500" />
+            <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
 
-        {/* Sidebar content (for mobile/vertical)*/}
-        <nav className="mt-5 px-2 space-y-1 lg:hidden">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-            const hasSubItems = item.subItems && item.subItems.length > 0;
-            
-            return (
-              <div key={item.name} className="space-y-1">
+        {/* Sidebar content */}
+        <div className="flex flex-col h-full bg-white">
+          <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+            {/* Always show Dashboard and Communication in mobile */}
+            <Link
+              to={getDashboardUrl()}
+              className={`
+                group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors
+                ${(location.pathname.startsWith('/dashboard') || location.pathname === '/dashboard')
+                  ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' 
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                }
+              `}
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Home 
+                className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
+                  (location.pathname.startsWith('/dashboard') || location.pathname === '/dashboard')
+                    ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
+                }`} 
+              />
+              Dashboard
+            </Link>
+
+            <Link
+              to="/communication"
+              className={`
+                group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors
+                ${(location.pathname.startsWith('/communication') || location.pathname === '/communication')
+                  ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' 
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                }
+              `}
+              onClick={() => setSidebarOpen(false)}
+            >
+              <MessageSquare 
+                className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
+                  (location.pathname.startsWith('/communication') || location.pathname === '/communication')
+                    ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
+                }`} 
+              />
+              Communication
+            </Link>
+
+            {/* Additional role-based items */}
+            {navItems.slice(2).map((item) => {
+              const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+              
+              return (
                 <Link
+                  key={item.name}
                   to={item.href}
                   className={`
-                    group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg
-                    ${isActive
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-100'
+                    group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors
+                    ${isActive 
+                      ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' 
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                    }
+                  `}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <item.icon 
+                    className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
+                      isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
+                    }`} 
+                  />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* User info in sidebar */}
+          <div className="border-t border-gray-200 p-4">
+            <div className="flex items-center">
+              <img
+                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}`}
+                alt="User Avatar"
+                className="h-8 w-8 rounded-full"
+              />
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-700">{userName}</p>
+                <p className="text-xs text-gray-500 capitalize">{userRole?.replace('_', ' ')}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content wrapper */}
+      <div className="flex-1 flex flex-col">
+        {/* Top navigation (desktop/horizontal) */}
+        <header className="bg-white shadow-sm border-b border-gray-200 z-10 relative mb-3">
+          <div className="flex justify-between h-16 px-4 sm:px-6 items-center">
+            <div className="flex items-center">
+              {/* Hamburger menu for mobile */}
+              <button
+                className="lg:hidden p-2 mr-2 text-gray-500 hover:bg-gray-100 rounded-md transition-colors"
+                onClick={() => setSidebarOpen(true)}
+                title="Open sidebar"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+
+              {/* Logo and Title */}
+              <Link to={getDashboardUrl()} className="flex items-center min-w-0">
+                <div className="flex-shrink-0">
+                  <div className="p-1.5 sm:p-2 bg-blue-600 rounded-lg">
+                    <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                  </div>
+                </div>
+                <div className="ml-1.5 sm:ml-2 text-base sm:text-xl font-semibold text-blue-600 truncate">
+                  <span className="hidden xs:inline">TetraNeurons</span>
+                  <span className="xs:hidden">TetraNeurons</span>
+                </div>
+              </Link>
+
+              {/* Desktop nav links */}
+              <nav className="hidden lg:flex items-center space-x-1 ml-4 xl:ml-8">
+                {/* Always show Dashboard and Communication */}
+                <Link
+                  to={getDashboardUrl()}
+                  className={`
+                    flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
+                    ${(location.pathname.startsWith('/dashboard') || location.pathname === '/dashboard')
+                      ? 'text-blue-700 bg-blue-50' 
+                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
                     }
                   `}
                 >
-                  <item.icon className={`
-                    mr-3 h-5 w-5 flex-shrink-0
-                    ${isActive ? 'text-blue-600' : 'text-gray-500 group-hover:text-gray-600'}
-                  `} />
-                  {item.name}
+                  <Home className="mr-1.5 h-4 w-4" />
+                  Dashboard
                 </Link>
 
-                {/* Sub-items */}
-                {hasSubItems && isActive && ( // Only show sub-items in vertical nav when parent is active
-                  <div className="ml-8 space-y-1">
-                    {item.subItems.map((subItem) => (
-                      <Link
-                        key={subItem.href}
-                        to={subItem.href}
-                        className={`
-                          block px-3 py-2 text-sm font-medium rounded-lg
-                          ${location.pathname === subItem.href
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                          }
-                        `}
-                      >
-                        {subItem.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
-      </div>
+                <Link
+                  to="/communication"
+                  className={`
+                    flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
+                    ${(location.pathname.startsWith('/communication') || location.pathname === '/communication')
+                      ? 'text-blue-700 bg-blue-50' 
+                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                    }
+                  `}
+                >
+                  <MessageSquare className="mr-1.5 h-4 w-4" />
+                  Communication
+                </Link>
 
-      <div className="flex-1 flex flex-col">
-        {/* Top navigation (for desktop/horizontal)*/}
-        <header className="bg-white shadow-sm border-b border-gray-200 z-10">
-          <div className="flex justify-between h-16 px-4 sm:px-6 items-center">
-            <div className="flex items-center">
-               {/* Logo and Title - Keep for both mobile and desktop header */}
-               <div className="flex-shrink-0">
-                <div className="p-2 bg-blue-600 rounded-lg">
-                  <Shield className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <div className="ml-2 text-xl font-semibold text-blue-600">TetraNeurons</div>
-
-              {/* Horizontal navigation links (Desktop only)*/}
-              <nav className="hidden lg:flex items-center space-x-4 ml-8">
-                {navItems.map((item) => {
-                  // Exclude items that only have sub-items if you don't want a main link for them
-                  if (item.subItems && item.href === item.subItems[0].href) {
-                      return (
-                        <Link
-                          key={item.name}
-                          to={item.href}
-                          className={`
-                            px-3 py-2 text-sm font-medium rounded-md
-                            ${location.pathname === item.href || location.pathname.startsWith(item.href + '/')
-                              ? 'text-blue-700 bg-blue-50'
-                              : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                            }
-                          `}
-                        >
-                          {item.name}
-                        </Link>
-                      );
-                  }
-                   // Render main links for items without sub-items or with different main href
+                {/* Additional role-based items */}
+                {navItems.slice(2).map((item) => {
+                  const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+                  
                   return (
                     <Link
                       key={item.name}
                       to={item.href}
                       className={`
-                        px-3 py-2 text-sm font-medium rounded-md
-                        ${location.pathname === item.href
-                          ? 'text-blue-700 bg-blue-50'
-                          : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                        flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
+                        ${isActive 
+                          ? 'text-blue-700 bg-blue-50' 
+                          : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
                         }
                       `}
                     >
+                      <item.icon className="mr-1.5 h-4 w-4" />
                       {item.name}
                     </Link>
                   );
@@ -287,90 +326,49 @@ const NavigationBar: React.FC<NavigationBarProps> = ({
             <div className="flex items-center space-x-4">
               {/* Notifications */}
               <div className="relative">
-                <button 
+                <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="p-2 rounded-full text-gray-500 hover:bg-gray-100 relative"
+                  className="p-2 rounded-full text-gray-500 hover:bg-gray-100 relative transition-colors"
                   title="View notifications"
                 >
                   <Bell className="h-6 w-6" />
-                  {mockNotifications.length > 0 && (
-                    <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
-                  )}
+                  {/* Notification dot */}
+                  <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
                 </button>
 
+                {/* Notification dropdown */}
                 {notificationsOpen && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-10 border border-gray-200">
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
                     <div className="px-4 py-2 border-b border-gray-200">
                       <p className="text-sm font-medium text-gray-700">Notifications</p>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
-                      {mockNotifications.length > 0 ? (
-                        mockNotifications.map((notification) => (
-                          <div 
-                            key={notification.id}
-                            className="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900">
-                                  {notification.title}
-                                </p>
-                                <p className="text-xs text-gray-600 truncate">
-                                  {notification.description}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {notification.time}
-                                </p>
-                              </div>
-                              <span className={`ml-2 flex-shrink-0 px-2 py-1 text-xs font-medium rounded-full ${
-                                notification.type === 'emergency' ? 'bg-red-100 text-red-800' : 
-                                notification.type === 'assignment' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {notification.type}
-                              </span>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-4 py-6 text-center text-gray-500">
-                          <p className="text-sm">No notifications</p>
-                        </div>
-                      )}
-                    </div>
-                    {mockNotifications.length > 0 && (
-                      <div className="px-4 py-2 border-t border-gray-200">
-                        <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                          View all notifications
-                        </button>
+                      <div className="px-4 py-6 text-center text-gray-500">
+                        <p className="text-sm">No notifications</p>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* User menu */}
+              {/* Profile */}
               <div className="relative">
-                <Link 
-                  to="/profile"
-                  className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100"
+                <Link
+                  to="/private/profile"
+                  className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  title="Profile"
                 >
-                  <img 
-                    src="https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff"
-                    alt="User Avatar" 
+                  <img
+                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0D8ABC&color=fff`}
+                    alt="User Avatar"
                     className="h-8 w-8 rounded-full"
                   />
-                  <span className="hidden md:block text-sm font-medium text-gray-700">User</span>
+                  <div className="hidden sm:block">
+                    <span className="text-sm font-medium text-gray-700">{userName}</span>
+                    <p className="text-xs text-gray-500 capitalize">{userRole?.replace('_', ' ')}</p>
+                  </div>
                 </Link>
               </div>
-
-              {/* Home button */}
-              <Link 
-                to="/"
-                className="p-2 rounded-md text-gray-500 hover:bg-gray-100"
-                title="Go to home"
-              >
-                <Home className="h-6 w-6" />
-              </Link>
             </div>
           </div>
         </header>

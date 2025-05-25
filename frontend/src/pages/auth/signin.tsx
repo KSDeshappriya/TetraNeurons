@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, MapPin, AlertCircle, Shield, Users, Heart, Building2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Eye, EyeOff, MapPin, Shield, AlertCircle, RefreshCw } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import Card from '../../components/ui/Card';
+import { authService } from '../../services/auth';
+import type { UserLogin } from '../../services/auth';
+import { useLocation } from '../../hooks/useLocation';
+import Footer from '../../components/layout/Footer';
 
 const SignIn: React.FC = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<UserLogin>({
     email: '',
     password: '',
-    userType: 'user'
+    latitude: 0,
+    longitude: 0
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const { location, loading: locationLoading, error: locationError, getCurrentLocation, clearError } = useLocation();
+  const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -21,18 +30,46 @@ const SignIn: React.FC = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // For UI demonstration only - no actual authentication
-    alert('Sign In page - UI demonstration only. Authentication is disabled for UI testing.');
+  const handleLocationClick = () => {
+    clearError(); // Clear previous errors
+    getCurrentLocation();
   };
 
-  const userTypes = [
-    { value: 'user', label: 'Citizen', icon: Users, description: 'Report emergencies and access resources' },
-    { value: 'volunteer', label: 'Volunteer', icon: Heart, description: 'Help during disaster response' },
-    { value: 'first_responder', label: 'First Responder', icon: Shield, description: 'Emergency response professional' },
-    { value: 'government', label: 'Government Official', icon: Building2, description: 'Coordinate disaster response' }
-  ];
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    if (!location) {
+      setMessage('Please share your location to continue');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const submitData = {
+        ...formData,
+        latitude: location.latitude,
+        longitude: location.longitude
+      };
+
+      const token = await authService.login(submitData);
+      if (token != null) {
+        setMessage('Login successful!');
+        const role = authService.getUserRole();
+        if (role === 'user') navigate('/user');
+        else if (role === 'volunteer') navigate('/volunteer');
+        else if (role === 'first_responder') navigate('/first_responder');
+        else if (role === 'government') navigate('/government');
+        else navigate('/public');
+      }
+    } catch (error) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      setMessage(err.response?.data?.detail || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
@@ -48,53 +85,7 @@ const SignIn: React.FC = () => {
 
         <Card className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* User Type Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                User Type
-              </label>
-              <div className="grid grid-cols-1 gap-3">
-                {userTypes.map((type) => {
-                  const IconComponent = type.icon;
-                  return (
-                    <label
-                      key={type.value}
-                      className={`relative flex cursor-pointer rounded-lg border p-4 focus:outline-none ${
-                        formData.userType === type.value
-                          ? 'border-primary-500 bg-primary-50'
-                          : 'border-gray-300 bg-white hover:bg-gray-50'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="userType"
-                        value={type.value}
-                        checked={formData.userType === type.value}
-                        onChange={handleInputChange}
-                        className="sr-only"
-                      />
-                      <div className="flex items-center">
-                        <IconComponent className={`h-5 w-5 mr-3 ${
-                          formData.userType === type.value ? 'text-primary-600' : 'text-gray-400'
-                        }`} />
-                        <div>
-                          <div className={`text-sm font-medium ${
-                            formData.userType === type.value ? 'text-primary-900' : 'text-gray-900'
-                          }`}>
-                            {type.label}
-                          </div>
-                          <div className={`text-xs ${
-                            formData.userType === type.value ? 'text-primary-700' : 'text-gray-500'
-                          }`}>
-                            {type.description}
-                          </div>
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
+
 
             {/* Email */}
             <Input
@@ -129,53 +120,109 @@ const SignIn: React.FC = () => {
               </button>
             </div>
 
-            {/* Location Notice */}
-            <div className="flex items-start space-x-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <MapPin className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div className="text-sm text-blue-800">
-                <p className="font-medium">Location Access Required</p>
-                <p className="text-blue-700">We'll need access to your location to provide emergency services in your area.</p>
-              </div>
-            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Location</label>
+              <button
+                type="button"
+                onClick={handleLocationClick}
+                disabled={locationLoading}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center gap-2 ${locationError
+                    ? 'border-red-500 bg-red-50'
+                    : location
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-300'
+                  }`}
+              >
+                {locationLoading ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    Getting location...
+                  </>
+                ) : locationError ? (
+                  <>
+                    <AlertCircle size={16} className="text-red-500" />
+                    <span className="text-red-600">Try again</span>
+                  </>
+                ) : location ? (
+                  <>
+                    <MapPin size={16} className="text-green-500" />
+                    <span className="text-green-600">Location obtained</span>
+                    <svg
+                      className="h-5 w-5 text-green-500"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path d="M5 13l4 4L19 7" />
+                    </svg>
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={16} />
+                    Get current location
+                  </>
+                )}
+              </button>
 
-            {/* Demo Notice */}
-            <div className="flex items-start space-x-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-              <div className="text-sm text-yellow-800">
-                <p className="font-medium">UI Demonstration Mode</p>
-                <p className="text-yellow-700">This is a UI demonstration. Authentication is disabled for testing purposes.</p>
-              </div>
+              {locationError ? (
+                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-red-700 text-sm font-medium">Location Error</p>
+                      <p className="text-red-600 text-sm mt-1">{locationError}</p>
+                      {locationError.includes('denied') && (
+                        <p className="text-red-600 text-xs mt-2">
+                          💡 Tip: Look for a location icon in your browser's address bar and click "Allow"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Location Notice
+                <div className="flex items-start space-x-2 p-3 mt-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <MapPin className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium">Location Access Required</p>
+                    <p className="text-blue-700">We'll need access to your location to provide emergency services in your area.</p>
+                  </div>
+                </div>
+              )}
+
+
+              {location && (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-green-700 text-sm">
+                    📍 Location: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Sign In Button */}
             <Button
               type="submit"
+              disabled={loading || !location}
               fullWidth
               className="bg-primary-600 hover:bg-primary-700"
             >
-              Sign In
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
-
-            {/* Forgot Password */}
-            <div className="text-center">
-              <Link 
-                to="#" 
-                className="text-sm text-primary-600 hover:text-primary-500"
-                onClick={(e) => {
-                  e.preventDefault();
-                  alert('Forgot Password - UI demonstration only');
-                }}
-              >
-                Forgot your password?
-              </Link>
-            </div>
-
+            {message && (
+              <p className={`text-center text-sm ${message.includes('successful') ? 'text-green-600' : 'text-red-600'}`}>
+                {message}
+              </p>
+            )}
             {/* Sign Up Link */}
             <div className="text-center pt-4 border-t border-gray-200">
               <p className="text-sm text-gray-600">
                 Don't have an account?{' '}
-                <Link 
-                  to="/auth/signup" 
+                <Link
+                  to="/auth/signup"
                   className="font-medium text-primary-600 hover:text-primary-500"
                 >
                   Sign up
@@ -185,12 +232,9 @@ const SignIn: React.FC = () => {
           </form>
         </Card>
 
+
         {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-xs text-gray-500">
-            TetraNeurons Disaster Response Coordination System
-          </p>
-        </div>
+<Footer />
       </div>
     </div>
   );
