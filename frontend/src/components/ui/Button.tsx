@@ -8,6 +8,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  onAction?: (() => void) | string; // If function, execute; if string, navigate
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -21,6 +22,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     rightIcon,
     disabled,
     className = '',
+    onAction,
     ...props 
   }, ref) => {
     // Base styles
@@ -69,10 +71,20 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         sizeClasses = 'text-sm px-4 py-2 rounded-md';
     }
 
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+      if (typeof onAction === 'function') {
+        onAction();
+      } else if (typeof onAction === 'string') {
+        window.location.href = onAction;
+      }
+      if (props.onClick) props.onClick(e);
+    };
+
     return (
       <button
         ref={ref}
         disabled={disabled || isLoading}
+        onClick={handleClick}
         className={`
           inline-flex items-center justify-center font-medium transition-colors duration-200 
           focus:outline-none focus:ring-2 focus:ring-offset-2 

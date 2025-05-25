@@ -1,286 +1,138 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import AppLayout from './components/layout/AppLayout';
-import { NotificationProvider, NotificationToast } from './components/communication/NotificationProvider';
-
-// Pages
-import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/profile';
-
-// Auth Pages
+import { Routes, Route,  } from 'react-router';
+import { Navigate } from 'react-router';
 import SignIn from './pages/auth/signin';
 import SignUp from './pages/auth/signup';
-
-// Dashboards
+import Unauthorized from './pages/auth/Unauthorized';
+import { 
+  AuthRoute, 
+  PublicRoute, 
+  UserRoute, 
+  VolunteerRoute, 
+  FirstResponderRoute, 
+  GovernmentRoute, 
+  PrivateRoute 
+} from './components/ProtectedRoute';
+import Profile from './pages/profile';
 import UserDashboard from './pages/dashboards/UserDashboard';
 import VolunteerDashboard from './pages/dashboards/VolunteerDashboard';
 import FirstResponderDashboard from './pages/dashboards/FirstResponderDashboard';
 import GovernmentDashboard from './pages/dashboards/GovernmentDashboard';
-
-// First Responder Pages
-import  Incidents  from './pages/first_responder/first_responder_Incidents';
-import  Resources  from './pages/first_responder/first_responder_Resources';
-import  Teams  from './pages/first_responder/first_responder_Teams';
-
-// Government Pages
-import  GovernmentOverview from './pages/government/Government_Overview';
-import  GovernmentResources  from './pages/government/Government_Resources';
-import  GovernmentReports  from './pages/government/Government_Reports';
-
-// User Pages
-import  EmergencyReports from './pages/user/User_EmergencyReports';
-import  UserResources from './pages/user/UserResources';
-
-// Volunteer Pages
-import VolunteerAssignments from './pages/volunteer/VolunteerAssignments';
-import VolunteerResources from './pages/volunteer/VolunteerResources';
-
-// Communication
-import CommunicationHub from './pages/communication/CommunicationHub';
+import Home from './pages/Home';
+import UserResources from './pages/user/UserResources';
+import EmergencyRequestReview from './pages/government/Goverment_Requests';
+import GovResources from './pages/government/Government_Reports';
+import ResourceAddingPage from './pages/government/Government_Resources';
+import FRDashboard from './pages/dashboards/FirstResponderDashboard';
+import FRResources from './pages/first_responder/first_responder_Resources';
+import VolResources from './pages/volunteer/VolunteerResources';
 
 const App: React.FC = () => {
   return (
-    <NotificationProvider>
-      <NotificationToast />
-      <Routes>
-        {/* Public Auth Routes */}
-        <Route path="/auth/signin" element={<SignIn />} />
-        <Route path="/auth/signup" element={<SignUp />} />
+        <Routes>
+          <Route path="/public/*" element={
+            <PublicRoute>
+              <Home />
+            </PublicRoute>
+          } />
 
-        {/* Home page without authentication */}
-        <Route path="/" element={<Home />} />
-        
-        {/* Main dashboard */}
-        <Route path="/dashboard" element={<AppLayout><Dashboard /></AppLayout>} />
+          <Route path="/auth/signin" element={
+            <AuthRoute>
+              <SignIn />
+            </AuthRoute>
+          } />
+          <Route path="/auth/signup" element={
+            <AuthRoute>
+              <SignUp />
+            </AuthRoute>
+          } />
 
-
-
-        {/* User Dashboard (index) */}
-          <Route path="/user" element={
-            <AppLayout>
+          <Route path="/user/*" element={
+            <UserRoute>
               <UserDashboard />
-            </AppLayout>
+            </UserRoute>
           } />
 
-          {/* Emergency Reports */}
-          <Route path="/user/reports" element={
-            <AppLayout>
-              <EmergencyReports />
-            </AppLayout>
-          } />
-
-          {/* User Resources */}
-          <Route path="/user/resources" element={
-            <AppLayout>
-              <UserResources />
-            </AppLayout>
-          } />
-
-          {/* Communication */}
-          <Route path="/user/communication" element={
-            <AppLayout>
-              <CommunicationHub />
-            </AppLayout>
-          } />
-
-        
-        
-        {/* Volunteer Dashboard (index) */}
-          <Route path="/volunteer" element={
-            <AppLayout>
+          <Route path="/volunteer/*" element={
+            <VolunteerRoute>
               <VolunteerDashboard />
-            </AppLayout>
+            </VolunteerRoute>
           } />
 
-          {/* Volunteer Assignments */}
-          <Route path="/volunteer/assignments" element={
-            <AppLayout>
-              <VolunteerAssignments />
-            </AppLayout>
+          <Route path="/first_responder/*" element={
+            <FirstResponderRoute>
+              <FirstResponderDashboard />
+            </FirstResponderRoute>
           } />
 
-          {/* Volunteer Resources */}
-          <Route path="/volunteer/resources" element={
-            <AppLayout>
-              <VolunteerResources />
-            </AppLayout>
+          <Route path="/government/*" element={
+            <GovernmentRoute>
+              <GovernmentDashboard />
+            </GovernmentRoute>
           } />
 
-          {/* Communication */}
-          <Route path="/volunteer/communication" element={
-            <AppLayout>
-              <CommunicationHub />
-            </AppLayout>
+          <Route path="/private/*" element={
+            <PrivateRoute>
+              <Profile />
+            </PrivateRoute>
           } />
 
-          {/* Training (Coming Soon) */}
-          <Route path="/volunteer/training" element={
-            <AppLayout>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold text-gray-900 mb-4">Training</h1>
-                <p className="text-gray-600">Training page - Coming soon</p>
-              </div>
-            </AppLayout>
+          <Route path="/unauthorized" element={<Unauthorized />} />
+          
+          <Route path="/" element={<Navigate to="/public" replace />} />
+          
+          <Route path="*" element={<Navigate to="/public" replace />} />
+
+          {/* Additional protected routes restored from comments */}
+          <Route path="/user/report" element={
+            <UserRoute>
+              <UserResources />
+            </UserRoute>
           } />
 
-        
-          {/* First Responder Dashboard (index) */}
-        <Route path="/first_responder" element={
-          <AppLayout>
-            <FirstResponderDashboard />
-          </AppLayout>
-        } />
+          <Route path="/gov" element={
+            <GovernmentRoute>
+              <GovernmentDashboard />
+            </GovernmentRoute>
+          } />
+          <Route path="/gov/request" element={
+            <GovernmentRoute>
+              <EmergencyRequestReview />
+            </GovernmentRoute>
+          } />
+          <Route path="/gov/report" element={
+            <GovernmentRoute>
+              <GovResources />
+            </GovernmentRoute>
+          } />
+          <Route path="/gov/resource" element={
+            <GovernmentRoute>
+              <ResourceAddingPage />
+            </GovernmentRoute>
+          } />
 
-        {/* Incidents */}
-        <Route path="/first_responder/incidents" element={
-          <AppLayout>
-            <Incidents />
-          </AppLayout>
-        } />
+          <Route path="/fr" element={
+            <FirstResponderRoute>
+              <FRDashboard />
+            </FirstResponderRoute>
+          } />
+          <Route path="/fr/report" element={
+            <FirstResponderRoute>
+              <FRResources />
+            </FirstResponderRoute>
+          } />
 
-        {/* Resources */}
-        <Route path="/first_responder/resources" element={
-          <AppLayout>
-            <Resources />
-          </AppLayout>
-        } />
+          <Route path="/vol" element={
+            <VolunteerRoute>
+              <VolunteerDashboard />
+            </VolunteerRoute>
+          } />
 
-        {/* Teams */}
-        <Route path="/first_responder/teams" element={
-          <AppLayout>
-            <Teams />
-          </AppLayout>
-        } />
-
-        {/* Communication */}
-        <Route path="/first_responder/communication" element={
-          <AppLayout>
-            <CommunicationHub />
-          </AppLayout>
-        } />
-
-        {/* Analytics (Coming Soon) */}
-        <Route path="/first_responder/analytics" element={
-          <AppLayout>
-            <div className="p-6">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h1>
-              <p className="text-gray-600">Analytics page - Coming soon</p>
-            </div>
-          </AppLayout>
-        } />
-
-
-        {/* Government Dashboard (index) */}
-      <Route path="/government" element={
-        <AppLayout>
-          <GovernmentDashboard />
-        </AppLayout>
-      } />
-
-      {/* Overview */}
-      <Route path="/government/overview" element={
-        <AppLayout>
-          <GovernmentOverview />
-        </AppLayout>
-      } />
-
-      {/* Resources */}
-      <Route path="/government/resources" element={
-        <AppLayout>
-          <GovernmentResources />
-        </AppLayout>
-      } />
-
-      {/* Reports */}
-      <Route path="/government/reports" element={
-        <AppLayout>
-          <GovernmentReports />
-        </AppLayout>
-      } />
-
-      {/* Analytics (Coming Soon) */}
-      <Route path="/government/analytics" element={
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h1>
-            <p className="text-gray-600">Analytics page - Coming soon</p>
-          </div>
-        </AppLayout>
-      } />
-
-      {/* Policies (Coming Soon) */}
-      <Route path="/government/policies" element={
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Policies</h1>
-            <p className="text-gray-600">Policies page - Coming soon</p>
-          </div>
-        </AppLayout>
-      } />
-
-        {/* Volunteer Dashboard (index) */}
-        
-        
-
-        {/* User Dashboard (index) */}
-        <Route path="/user" element={
-          <AppLayout>
-            <UserDashboard />
-          </AppLayout>
-        } />
-
-        {/* EmergencyReports */}
-        <Route path="/user/reports" element={
-          <AppLayout>
-            <EmergencyReports />
-          </AppLayout>
-        } />
-
-        {/* UserResources */}
-        <Route path="/user/resources" element={
-          <AppLayout>
-            <UserResources />
-          </AppLayout>
-        } />
-
-        {/* CommunicationHub */}
-        <Route path="/user/communication" element={
-          <AppLayout>
-            <CommunicationHub />
-          </AppLayout>
-        } />
-
-
-
-        {/* Communication */}
-        <Route path="/communication" element={
-          <AppLayout>
-            <CommunicationHub />
-          </AppLayout>
-        } />
-        
-        {/* Profile Route */}
-        <Route path="/profile" element={
-          <AppLayout>
-            <Profile />
-          </AppLayout>
-        } />
-        
-        {/* Settings placeholder */}
-        <Route path="/settings" element={
-          <AppLayout>
-            <div className="p-6">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">Settings</h1>
-              <p className="text-gray-600">Settings page - Coming soon</p>
-            </div>
-          </AppLayout>
-        } />
-        
-        {/* Catch all - redirect to home */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </NotificationProvider>
+           <Route path="/vol" element={
+            <VolunteerRoute>
+              <VolResources />
+            </VolunteerRoute>
+          } />
+        </Routes>
   );
 };
 

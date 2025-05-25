@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, MapPin, Phone, Mail, Building, Users, Award, Briefcase } from 'lucide-react';
 import { authService, type UserProfile } from '../services/auth';
+import NavigationBar from '../components/layout/Navigationbar';
+import Footer from '../components/layout/Footer';
 
 
 const Profile: React.FC = () => {
@@ -188,8 +190,9 @@ const Profile: React.FC = () => {
     );
   }
 
-  return (
+  return (        
     <div className="min-h-screen bg-white py-8 px-4">
+      <NavigationBar  />
       <div className="max-w-2xl mx-auto">
         {/* Header with logout */}
         <div className="flex justify-between items-center mb-8">
@@ -279,6 +282,8 @@ const Profile: React.FC = () => {
           )}
         </div>
       </div>
+      {/* Footer */}
+<Footer />
     </div>
   );
 };

@@ -27,6 +27,7 @@ class AuthService {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       return payload as TokenPayload;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       return null;
     }
