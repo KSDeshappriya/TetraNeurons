@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
 import { 
   AlertTriangle, 
@@ -19,14 +19,14 @@ import { Button } from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import NavigationBar from '../../components/layout/Navigationbar';
 import Footer from '../../components/layout/Footer';
-
+import { getRecentItemsWithGeohashNotGov } from '../../services/check_disaster';
+import geohash from "ngeohash";
 
 interface SwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   className?: string;
 }
-
 
 function Switch({ checked, onChange, className = '' }: SwitchProps) {
   return (
@@ -50,14 +50,26 @@ interface EmergencyType {
   icon: LucideIcon;
 }
 
-interface EmergencyReport {
-  id: string;
-  type: string;
-  description: string;
-  location: string;
-  status: 'Active' | 'Responding' | 'Resolved' | 'Archived';
-  reportedAt: string;
-  peopleAffected: number;
+interface DisasterData {
+  uniqueId: string;
+  data: {
+    ai_processing_time: number;
+    citizen_survival_guide: string;
+    created_at: number;
+    disaster_id: string;
+    emergency_type: string;
+    geohash: string;
+    government_report: string;
+    image_url: string;
+    latitude: number;
+    longitude: number;
+    people_count: string;
+    situation: string;
+    status: string;
+    submitted_time: number;
+    urgency_level: string;
+    user_id: string;
+  };
 }
 
 const UserDashboard: React.FC = () => {
@@ -72,6 +84,40 @@ const UserDashboard: React.FC = () => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [nearbyDisasters, setNearbyDisasters] = useState<DisasterData[]>([]);
+  const [userGeohash, setUserGeohash] = useState<string>('');
+
+  useEffect(() => {
+    const fetchDisasterData = async () => {
+      try {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ latitude, longitude });
+
+          // Encode location to 4-precision geohash
+          const geohash4 = geohash.encode(latitude, longitude).substring(0, 4);
+          setUserGeohash(geohash4);
+
+          console.log("Using geohash:", geohash4);
+
+          // Fetch data from Firebase
+          const data = await getRecentItemsWithGeohashNotGov(geohash4);
+          console.log("Fetched disaster data:", data);
+          
+          // Set the disaster data to state
+          if (Array.isArray(data)) {
+            setNearbyDisasters(data);
+          } else if (data) {
+            setNearbyDisasters([data]);
+          }
+        });
+      } catch (error) {
+        console.error("Error fetching location or disaster data:", error);
+      }
+    };
+
+    fetchDisasterData();
+  }, []);
 
   const emergencyTypes: EmergencyType[] = [
     { id: 'flood', name: 'Flood', icon: Cloud },
@@ -89,18 +135,30 @@ const UserDashboard: React.FC = () => {
     { id: 'critical', name: 'Critical', description: 'Life-threatening emergency, immediate help needed' }
   ];
 
-  const reports: EmergencyReport[] = [
-    {
-      id: 'ER-2023-001',
-      type: 'Flood',
-      description: 'Rising water levels in downtown area, streets becoming impassable.',
-      location: 'Downtown River District',
-      status: 'Active',
-      reportedAt: '2023-06-15T09:30:00',
-      peopleAffected: 120,
-    },
-
-  ];
+  const calculateDistance = (userGeohash: string, disasterGeohash: string): string => {
+    if (!userGeohash || !disasterGeohash) return 'Unknown';
+    
+    // Decode both geohashes to get coordinates
+    const userCoords = geohash.decode(userGeohash);
+    const disasterCoords = geohash.decode(disasterGeohash);
+    
+    // Calculate distance using Haversine formula
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (disasterCoords.latitude - userCoords.latitude) * Math.PI / 180;
+    const dLon = (disasterCoords.longitude - userCoords.longitude) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(userCoords.latitude * Math.PI / 180) * Math.cos(disasterCoords.latitude * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    
+    if (distance < 1) {
+      return `${Math.round(distance * 1000)}m`;
+    } else {
+      return `${distance.toFixed(1)}km`;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -163,8 +221,8 @@ const UserDashboard: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
+  const formatDate = (timestamp: number): string => {
+    const date = new Date(timestamp * 1000); // Convert from seconds to milliseconds
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
       day: 'numeric',
@@ -175,17 +233,38 @@ const UserDashboard: React.FC = () => {
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Active':
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'pending':
         return <AlertTriangle className="h-5 w-5 text-emergency-500" />;
-      case 'Responding':
+      case 'responding':
+      case 'processing':
         return <Clock3 className="h-5 w-5 text-primary-500" />;
-      case 'Resolved':
+      case 'resolved':
+      case 'completed':
         return <CheckCircle2 className="h-5 w-5 text-success-500" />;
-      case 'Archived':
+      case 'archived':
         return <AlertCircle className="h-5 w-5 text-gray-400" />;
       default:
-        return null;
+        return <AlertTriangle className="h-5 w-5 text-emergency-500" />;
+    }
+  };
+
+  const getEmergencyTypeIcon = (type: string): LucideIcon => {
+    const normalizedType = type.toLowerCase();
+    switch (normalizedType) {
+      case 'flood':
+        return Cloud;
+      case 'earthquake':
+        return Building;
+      case 'fire':
+        return Flame;
+      case 'landslide':
+        return AlertTriangle;
+      case 'storm':
+        return Cloud;
+      default:
+        return AlertTriangle;
     }
   };
 
@@ -423,55 +502,69 @@ const UserDashboard: React.FC = () => {
             </h2>
 
             <div className="space-y-4">
-              {reports.length > 0 ? (
-                reports.map(report => (
-                  <Card key={report.id} className="transition-shadow hover:shadow-md">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      <div className="sm:w-16 flex sm:flex-col items-center justify-center">
-                        {getStatusIcon(report.status)}
-                        <span className="mt-2 text-xs font-medium text-gray-500">{report.status}</span>
-                      </div>
+              {nearbyDisasters.length > 0 ? (
+                nearbyDisasters.map(disaster => {
+                  const EmergencyIcon = getEmergencyTypeIcon(disaster.data.emergency_type);
+                  const distance = calculateDistance(userGeohash, disaster.data.geohash);
+                  
+                  return (
+                    <Card key={disaster.uniqueId} className="transition-shadow hover:shadow-md">
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <div className="sm:w-16 flex sm:flex-col items-center justify-center">
+                          {getStatusIcon(disaster.data.status)}
+                          <span className="mt-2 text-xs font-medium text-gray-500 capitalize">{disaster.data.status}</span>
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <EmergencyIcon className="h-5 w-5 text-gray-600" />
+                                <h3 className="text-lg font-semibold text-gray-900 capitalize">{disaster.data.emergency_type}</h3>
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  disaster.data.urgency_level === 'critical' ? 'bg-red-100 text-red-800' :
+                                  disaster.data.urgency_level === 'high' ? 'bg-orange-100 text-orange-800' :
+                                  disaster.data.urgency_level === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-green-100 text-green-800'
+                                }`}>
+                                  {disaster.data.urgency_level}
+                                </span>
+                              </div>
                       
-                      <div className="flex-1">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-lg font-semibold text-gray-900">{report.type}</h3>
-                             
                             </div>
-                            <p className="text-sm text-gray-600 line-clamp-2 mt-1">{report.description}</p>
+                            <div className="flex items-center text-xs text-gray-500">
+                              <Clock className="h-4 w-4 mr-1 flex-shrink-0" />
+                              <span>{formatDate(disaster.data.submitted_time)}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center text-xs text-gray-500">
-                            <Clock className="h-4 w-4 mr-1 flex-shrink-0" />
-                            <span>{formatDate(report.reportedAt)}</span>
+                          
+                          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600 mb-3">
+                            <div className="flex items-center">
+                              <MapPin className="h-4 w-4 mr-1 flex-shrink-0 text-gray-500" />
+                             
+                              <span className="ml-2  font-medium">({distance} away)</span>
+                            </div>
+                            <div className="flex items-center">
+                              <Users className="h-4 w-4 mr-1 flex-shrink-0 text-gray-500" />
+                              <span>{disaster.data.people_count} people affected</span>
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600 mb-3">
-                          <div className="flex items-center">
-                            <MapPin className="h-4 w-4 mr-1 flex-shrink-0 text-gray-500" />
-                            <span>{report.location}</span>
+                          
+                          <div className="flex justify-end">
+                              <Button
+                              variant="outline"
+                              size="sm"
+                              leftIcon={<ExternalLink className="h-4 w-4" />}
+                              onAction={`/user/report?id=${disaster.uniqueId}`}
+                              >
+                              View Details
+                              </Button>
                           </div>
-                          <div className="flex items-center">
-                            <Users className="h-4 w-4 mr-1 flex-shrink-0 text-gray-500" />
-                            <span>{report.peopleAffected} people affected</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-end">
-                            <Button
-                            variant="outline"
-                            size="sm"
-                            leftIcon={<ExternalLink className="h-4 w-4" />}
-                            onAction={`/user/report?id=${report.id}`}
-                            >
-                            View Details
-                            </Button>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                ))
+                    </Card>
+                  );
+                })
               ) : (
                 <div className="text-center py-8">
                   <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { AlertTriangle,Users, Download, Clock, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Users, Download, Clock, CheckCircle } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Button } from '../../components/ui/Button';
@@ -8,150 +8,102 @@ import StatCard from '../../components/ui/StatCard';
 import { authService } from '../../lib/auth';
 import Footer from '../../components/layout/Footer';
 import NavigationBar from '../../components/layout/Navigationbar';
-
+import { getItemsFirebase } from '../../services/check_disaster';
+import { getTotalResourceCount } from '../../services/check_resource';
 
 interface DisasterData {
-  id: string;
-  type: string;
-  peopleAffected: number;
-  resourcesDeployed: number;
-  responseTeams: number;
-  startDate?: Date; // changed from string to Date and made optional for pending
-  trend: 'improving' | 'worsening' | 'stable';
-  status: 'Active' | 'Pending' | 'Resolved';
-  longitude: number;
-  latitude: number;
-  urgencyLevel?: 'Low' | 'Medium' | 'High' | 'Critical';
-  requestDate?: string;
-  resolvedDate?: Date; // changed from string to Date
-  location?: string;
+  uniqueId: string;
+  data: {
+    ai_processing_time: number;
+    citizen_survival_guide: string;
+    created_at: number;
+    disaster_id: string;
+    emergency_type: string;
+    geohash: string;
+    government_report: string;
+    image_url: string;
+    latitude: number;
+    longitude: number;
+    people_count: string;
+    situation: string;
+    status: string;
+    submitted_time: number;
+    urgency_level: string;
+    user_id: string;
+  };
 }
 
 const GovernmentDashboard: React.FC = () => {
   const token = authService.getTokenPayload();
   const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'archive'>('active');
-  const showMap = true; 
-  
-  // Mock data for active disasters
-  const activeDisasters: DisasterData[] = [
-    {
-      id: 'DIS-2023-001',
-      type: 'Flooding',
-      status: 'Active',
-      peopleAffected: 3500,
-      resourcesDeployed: 45,
-      responseTeams: 12,
-      trend: 'improving',
-      longitude: -122.4194,
-      latitude: 37.7749,
-      location: 'San Francisco, CA',
-      startDate: new Date('2023-05-10T08:00:00Z')
-    },
-    {
-      id: 'DIS-2023-002',
-      type: 'Wildfire',
-      status: 'Active',
-      peopleAffected: 850,
-      resourcesDeployed: 28,
-      responseTeams: 8,
-      trend: 'improving',
-      longitude: -118.2437,
-      latitude: 34.0522,
-      location: 'Los Angeles, CA',
-      startDate: new Date('2023-05-12T10:00:00Z')
-    },
-    {
-      id: 'DIS-2023-003',
-      type: 'Earthquake',
-      status: 'Active',
-      peopleAffected: 12000,
-      resourcesDeployed: 102,
-      responseTeams: 24,
-      trend: 'worsening',
-      longitude: -121.4944,
-      latitude: 38.5816,
-      location: 'Sacramento, CA',
-      startDate: new Date('2023-05-15T14:00:00Z')
-    }
-  ];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const showMap = true;
 
-  // Mock data for pending disaster requests
-  const pendingDisasters: DisasterData[] = [
-    {
-      id: 'REQ-2023-008',
-      type: 'Storm',
-      status: 'Pending',
-      peopleAffected: 1200,
-      resourcesDeployed: 0,
-      responseTeams: 0,
-      requestDate: '2 hours ago',
-      urgencyLevel: 'Critical',
-      trend: 'stable',
-      longitude: -95.3698,
-      latitude: 29.7604,
-      location: 'Houston, TX'
-    },
-    {
-      id: 'REQ-2023-009',
-      type: 'Landslide',
-      status: 'Pending',
-      peopleAffected: 300,
-      resourcesDeployed: 0,
-      responseTeams: 0,
-      requestDate: '4 hours ago',
-      urgencyLevel: 'High',
-      trend: 'stable',
-      longitude: -87.6298,
-      latitude: 41.8781,
-      location: 'Chicago, IL'
-    },
-    {
-      id: 'REQ-2023-010',
-      type: 'Flooding',
-      status: 'Pending',
-      peopleAffected: 500,
-      resourcesDeployed: 0,
-      responseTeams: 0,
-      requestDate: '1 day ago',
-      urgencyLevel: 'Medium',
-      trend: 'stable',
-      longitude: -104.9903,
-      latitude: 39.7392,
-      location: 'Denver, CO'
-    }
-  ];
+  // State for disaster data
+  const [activeDisasters, setActiveDisasters] = useState<DisasterData[]>([]);
+  const [pendingDisasters, setPendingDisasters] = useState<DisasterData[]>([]);
+  const [archivedDisasters, setArchivedDisasters] = useState<DisasterData[]>([]);
+  const [resourceCount, setResourceCount] = useState<number>(0);
 
-  // Mock data for archived disasters
-  const archivedDisasters: DisasterData[] = [
-    {
-      id: 'DIS-2023-004',
-      type: 'Hurricane',
-      status: 'Resolved',
-      peopleAffected: 25000,
-      resourcesDeployed: 250,
-      responseTeams: 45,
-      startDate: new Date('2023-05-01T09:00:00Z'),
-      resolvedDate: new Date('2023-05-08T18:00:00Z'),
-      trend: 'stable',
-      longitude: -80.1918,
-      latitude: 25.7617,
-      location: 'Miami, FL'
-    },
-    {
-      id: 'DIS-2023-005',
-      type: 'Tornado',
-      status: 'Resolved',
-      peopleAffected: 800,
-      resourcesDeployed: 35,
-      responseTeams: 12,
-      startDate: new Date('2023-04-20T11:00:00Z'),
-      resolvedDate: new Date('2023-04-27T16:00:00Z'),
-      trend: 'stable',
-      longitude: -97.5164,
-      latitude: 35.4676,
-      location: 'Oklahoma City, OK'
-    }
-  ];
+  useEffect(() => {
+    const fetchDisasterData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const items: DisasterData[] = await getItemsFirebase();
+        
+        // Filter and categorize disasters based on status
+        const active: DisasterData[] = [];
+        const pending: DisasterData[] = [];
+        const archived: DisasterData[] = [];
+
+        items.forEach((disaster) => {
+          const status = disaster.data.status.toLowerCase();
+          
+          switch (status) {
+            case 'active':
+            case 'ongoing':
+            case 'in progress':
+              active.push(disaster);
+              break;
+            case 'pending':
+            case 'review':
+            case 'submitted':
+              pending.push(disaster);
+              break;
+            case 'resolved':
+            case 'completed':
+            case 'closed':
+            case 'archive':
+            case 'archived':
+              archived.push(disaster);
+              break;
+            default:
+              // If status is unclear, categorize based on other factors
+              if (disaster.data.urgency_level === 'Critical' || disaster.data.urgency_level === 'High') {
+                active.push(disaster);
+              } else {
+                pending.push(disaster);
+              }
+          }
+        });
+
+        setActiveDisasters(active);
+        setPendingDisasters(pending);
+        setArchivedDisasters(archived);
+        
+      } catch (error) {
+        console.error("Error fetching disaster data:", error);
+        setError("Failed to load disaster data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDisasterData();
+  }, []);
 
   const getCurrentData = () => {
     switch (activeTab) {
@@ -163,29 +115,47 @@ const GovernmentDashboard: React.FC = () => {
   };
 
   const getUrgencyColor = (level: string) => {
-    switch (level) {
-      case 'Critical': return 'bg-red-100 text-red-800';
-      case 'High': return 'bg-orange-100 text-orange-800';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800';
-      case 'Low': return 'bg-green-100 text-green-800';
+    switch (level?.toLowerCase()) {
+      case 'critical': return 'bg-red-100 text-red-800';
+      case 'high': return 'bg-orange-100 text-orange-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getTrendColor = (trend: string) => {
-    switch (trend) {
-      case 'improving': return 'bg-green-100 text-green-800';
-      case 'worsening': return 'bg-red-100 text-red-800';
-      case 'stable': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+      case 'ongoing':
+      case 'in progress':
+        return 'bg-red-100 text-red-800';
+      case 'pending':
+      case 'review':
+      case 'submitted':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'resolved':
+      case 'completed':
+      case 'closed':
+      case 'archive':
+      case 'archived':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getMarkerIcon = (status: string) => {
     let color = '#3B82F6'; // default blue
-    if (status === 'Active') color = '#EF4444'; // red
-    else if (status === 'Pending') color = '#F59E0B'; // orange
-    else if (status === 'Resolved') color = '#10B981'; // green
+    const statusLower = status?.toLowerCase();
+    
+    if (statusLower === 'active' || statusLower === 'ongoing' || statusLower === 'in progress') {
+      color = '#EF4444'; // red
+    } else if (statusLower === 'pending' || statusLower === 'review' || statusLower === 'submitted') {
+      color = '#F59E0B'; // orange
+    } else if (statusLower === 'resolved' || statusLower === 'completed' || statusLower === 'closed') {
+      color = '#10B981'; // green
+    }
 
     return L.divIcon({
       className: 'custom-div-icon',
@@ -195,11 +165,53 @@ const GovernmentDashboard: React.FC = () => {
     });
   };
 
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp * 1000).toLocaleString();
+  };
+
+  useEffect(() => {
+        const fetchCount = async () => {
+            const count = await getTotalResourceCount();
+            setResourceCount(count);
+        };
+        fetchCount();
+    }, []);
+
+  if (loading) {
+    return (
+      <>
+        <NavigationBar />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading disaster data...</p>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <NavigationBar />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
   return (
     <>
       <NavigationBar />
       <div className="min-h-screen bg-gray-50">
-        {/* Centered Container with side margins */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Header */}
           <div className="mb-6 sm:mb-8">
@@ -207,7 +219,7 @@ const GovernmentDashboard: React.FC = () => {
             <p className="text-gray-600 mt-1 text-sm sm:text-base">Government Operations Dashboard</p>
           </div>
 
-          {/* Quick Stats - Mobile responsive grid */}
+          {/* Quick Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
             <StatCard 
               title="Active Disasters" 
@@ -223,7 +235,7 @@ const GovernmentDashboard: React.FC = () => {
             />
             <StatCard 
               title="Resources Deployed" 
-              value={activeDisasters.reduce((sum, disaster) => sum + disaster.resourcesDeployed, 0)} 
+              value={resourceCount} 
               icon={Users}
               variant="info"
             />
@@ -235,7 +247,7 @@ const GovernmentDashboard: React.FC = () => {
             />
           </div>
 
-          {/* Dashboard Tabs - Mobile scrollable */}
+          {/* Dashboard Tabs */}
           <div className="mb-6 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
@@ -247,7 +259,7 @@ const GovernmentDashboard: React.FC = () => {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Active Disasters
+                  Active Disasters ({activeDisasters.length})
                 </button>
                 <button
                   onClick={() => setActiveTab('pending')}
@@ -257,7 +269,7 @@ const GovernmentDashboard: React.FC = () => {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Pending Requests
+                  Pending Requests ({pendingDisasters.length})
                 </button>
                 <button
                   onClick={() => setActiveTab('archive')}
@@ -267,15 +279,14 @@ const GovernmentDashboard: React.FC = () => {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Archive
+                  Archive ({archivedDisasters.length})
                 </button>
               </nav>
-              
             </div>
           </div>
 
           {/* Map Section */}
-          {showMap && (
+          {showMap && getCurrentData().length > 0 && (
             <div className="mb-6">
               <Card className="p-0 overflow-hidden">
                 <div className="h-64 sm:h-96">
@@ -290,18 +301,18 @@ const GovernmentDashboard: React.FC = () => {
                     />
                     {getCurrentData().map((disaster) => (
                       <Marker
-                        key={disaster.id}
-                        position={[disaster.latitude, disaster.longitude]}
-                        icon={getMarkerIcon(disaster.type)}
+                        key={disaster.uniqueId}
+                        position={[disaster.data.latitude, disaster.data.longitude]}
+                        icon={getMarkerIcon(disaster.data.status)}
                       >
                         <Popup>
                           <div className="text-xs sm:text-sm">
-                            <h3 className="font-semibold">{disaster.type}</h3>
-                            <p>ID: {disaster.id}</p>
-                            <p>Location: {disaster.location}</p>
-                            <p>Status: {disaster.status}</p>
-                            <p>People Affected: {disaster.peopleAffected.toLocaleString()}</p>
-                            {disaster.urgencyLevel && <p>Priority: {disaster.urgencyLevel}</p>}
+                            <h3 className="font-semibold">{disaster.data.emergency_type}</h3>
+                            <p>ID: {disaster.data.disaster_id}</p>
+                            <p>Status: {disaster.data.status}</p>
+                            <p>People Affected: {disaster.data.people_count}</p>
+                            <p>Priority: {disaster.data.urgency_level}</p>
+                            <p>Situation: {disaster.data.situation}</p>
                           </div>
                         </Popup>
                       </Marker>
@@ -312,99 +323,155 @@ const GovernmentDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* Tab Content - Compact mobile design */}
+          {/* Tab Content */}
           <div>
             {/* Active Disasters Tab */}
             {activeTab === 'active' && (
               <div className="space-y-3 sm:space-y-6">
-                {activeDisasters.map((disaster) => (
-                  <Card key={disaster.id} className="hover:shadow-md transition-shadow p-2 sm:p-3 mb-2 sm:mb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3">
-                      <div>
-                        <h3 className="text-xs sm:text-base font-medium text-gray-900">{disaster.type}</h3>
-                        <p className="text-xs text-gray-500">{disaster.id} • {disaster.startDate ? disaster.startDate.toLocaleString() : ''}</p>
-                        <p className="text-xs text-gray-400">{disaster.location}</p>
-                      </div>
-                      <div className="flex flex-row gap-2 sm:gap-3 items-center mt-2 sm:mt-0">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTrendColor(disaster.trend)}`}>{disaster.trend.charAt(0).toUpperCase() + disaster.trend.slice(1)}</span>
-                        <Button variant="outline" size="sm" className="text-xs" onAction={`/gov/resource`}>Allocate Resources</Button>
-                        <Button variant="outline" size="sm" className="text-xs"  onAction={`/gov/report?id=${disaster.id}`}>View Disaster</Button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 mb-2 sm:mb-3">
-                      <div>
-                        <p className="text-xs text-gray-500">People</p>
-                        <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.peopleAffected.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Resources</p>
-                        <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.resourcesDeployed}</p>
-                      </div>
-                    </div>
+                {activeDisasters.length === 0 ? (
+                  <Card className="p-6 text-center">
+                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                    <p className="text-gray-600">No active disasters at the moment.</p>
                   </Card>
-                ))}
+                ) : (
+                  activeDisasters.map((disaster) => (
+                    <Card key={disaster.uniqueId} className="hover:shadow-md transition-shadow p-2 sm:p-3 mb-2 sm:mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3">
+                        <div>
+                          <h3 className="text-xs sm:text-base font-medium text-gray-900">{disaster.data.emergency_type}</h3>
+                          <p className="text-xs text-gray-500">{disaster.data.disaster_id} • {formatDate(disaster.data.created_at)}</p>
+                          <p className="text-xs text-gray-400">Lat: {disaster.data.latitude}, Lng: {disaster.data.longitude}</p>
+                        </div>
+                        <div className="flex flex-row gap-2 sm:gap-3 items-center mt-2 sm:mt-0">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(disaster.data.status)}`}>
+                            {disaster.data.status}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(disaster.data.urgency_level)}`}>
+                            {disaster.data.urgency_level}
+                          </span>
+                          <Button variant="outline" size="sm" className="text-xs" onClick={() => window.location.href = `/gov/resource?id=${disaster.data.disaster_id}`}>
+                            Allocate Resources
+                          </Button>
+                          <Button variant="outline" size="sm" className="text-xs" onClick={() => window.location.href = `/gov/report?id=${disaster.data.disaster_id}`}>
+                            View Details
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 mb-2 sm:mb-3">
+                        <div>
+                          <p className="text-xs text-gray-500">People Affected</p>
+                          <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.data.people_count}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Urgency</p>
+                          <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.data.urgency_level}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-gray-500">Situation</p>
+                          <p className="text-xs sm:text-sm text-gray-900">{disaster.data.situation}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
               </div>
             )}
 
-            {/* Pending Disaster Requests Tab */}
+            {/* Pending Disasters Tab */}
             {activeTab === 'pending' && (
               <div className="space-y-3 sm:space-y-6">
-                {pendingDisasters.map((request) => (
-                  <Card key={request.id} className="hover:shadow-md transition-shadow p-2 sm:p-3 mb-2 sm:mb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3">
-                      <div>
-                        <h3 className="text-xs sm:text-base font-medium text-gray-900">{request.type} Request</h3>
-                        <p className="text-xs text-gray-500">{request.id} • {request.requestDate}</p>
-                        <p className="text-xs text-gray-400">{request.location}</p>
-                      </div>
-                      <div className="flex flex-row gap-2 sm:gap-3 items-center mt-2 sm:mt-0">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(request.urgencyLevel || 'Medium')}`}>{request.urgencyLevel} Priority</span>
-                        <Button onAction="/gov/request" variant="primary" size="sm" className="text-xs">View More Details</Button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1 sm:gap-2 mb-2 sm:mb-3">
-                      <div>
-                        <p className="text-xs text-gray-500">Est. People Affected</p>
-                        <p className="text-xs sm:text-sm text-gray-900 font-medium">{request.peopleAffected.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Urgency Level</p>
-                        <p className="text-xs sm:text-sm text-gray-900 font-medium">{request.urgencyLevel}</p>
-                      </div>
-                    </div>
+                {pendingDisasters.length === 0 ? (
+                  <Card className="p-6 text-center">
+                    <Clock className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+                    <p className="text-gray-600">No pending disaster requests.</p>
                   </Card>
-                ))}
+                ) : (
+                  pendingDisasters.map((disaster) => (
+                    <Card key={disaster.uniqueId} className="hover:shadow-md transition-shadow p-2 sm:p-3 mb-2 sm:mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3">
+                        <div>
+                          <h3 className="text-xs sm:text-base font-medium text-gray-900">{disaster.data.emergency_type} Request</h3>
+                          <p className="text-xs text-gray-500">{disaster.data.disaster_id} • {formatDate(disaster.data.submitted_time)}</p>
+                          <p className="text-xs text-gray-400">Lat: {disaster.data.latitude}, Lng: {disaster.data.longitude}</p>
+                        </div>
+                        <div className="flex flex-row gap-2 sm:gap-3 items-center mt-2 sm:mt-0">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(disaster.data.urgency_level)}`}>
+                            {disaster.data.urgency_level} Priority
+                          </span>
+                          <Button variant="primary" size="sm" className="text-xs" onClick={() => window.location.href = `/gov/request?id=${disaster.data.disaster_id}`}>
+                            Review Request
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 sm:gap-2 mb-2 sm:mb-3">
+                        <div>
+                          <p className="text-xs text-gray-500">Est. People Affected</p>
+                          <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.data.people_count}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Urgency Level</p>
+                          <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.data.urgency_level}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-gray-500">Situation</p>
+                          <p className="text-xs sm:text-sm text-gray-900">{disaster.data.situation}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
               </div>
             )}
 
             {/* Archive Tab */}
             {activeTab === 'archive' && (
               <div className="space-y-3 sm:space-y-6">
-                {archivedDisasters.map((disaster) => (
-                  <Card key={disaster.id} className="hover:shadow-md transition-shadow p-2 sm:p-3 mb-2 sm:mb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3">
-                      <div>
-                        <h3 className="text-xs sm:text-base font-medium text-gray-900">{disaster.type}</h3>
-                        <p className="text-xs text-gray-500">{disaster.id} • {disaster.startDate ? disaster.startDate.toLocaleString() : ''} - {disaster.resolvedDate ? disaster.resolvedDate.toLocaleString() : ''}</p>
-                        <p className="text-xs text-gray-400">{disaster.location}</p>
-                      </div>
-                      <div className="flex flex-row gap-2 sm:gap-3 items-center mt-2 sm:mt-0">
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Resolved</span>
-                        <Button variant="outline" size="sm" className="text-xs"><Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />Download Report</Button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 sm:gap-2 mb-2 sm:mb-3">
-                      <div>
-                        <p className="text-xs text-gray-500">People Affected</p>
-                        <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.peopleAffected.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Resources Used</p>
-                        <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.resourcesDeployed}</p>
-                      </div>
-                    </div>
+                {archivedDisasters.length === 0 ? (
+                  <Card className="p-6 text-center">
+                    <Download className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No archived disasters yet.</p>
                   </Card>
-                ))}
+                ) : (
+                  archivedDisasters.map((disaster) => (
+                    <Card key={disaster.uniqueId} className="hover:shadow-md transition-shadow p-2 sm:p-3 mb-2 sm:mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3">
+                        <div>
+                          <h3 className="text-xs sm:text-base font-medium text-gray-900">{disaster.data.emergency_type}</h3>
+                          <p className="text-xs text-gray-500">
+                            {disaster.data.disaster_id} • {formatDate(disaster.data.created_at)}
+                          </p>
+                          <p className="text-xs text-gray-400">Lat: {disaster.data.latitude}, Lng: {disaster.data.longitude}</p>
+                        </div>
+                        <div className="flex flex-row gap-2 sm:gap-3 items-center mt-2 sm:mt-0">
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Resolved</span>
+                          <Button variant="outline" size="sm" className="text-xs">
+                            <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />Download Report
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 sm:gap-2 mb-2 sm:mb-3">
+                        <div>
+                          <p className="text-xs text-gray-500">People Affected</p>
+                          <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.data.people_count}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Final Status</p>
+                          <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.data.status}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Priority Level</p>
+                          <p className="text-xs sm:text-sm text-gray-900 font-medium">{disaster.data.urgency_level}</p>
+                        </div>
+                      </div>
+                      {disaster.data.government_report && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-500">Government Report</p>
+                          <p className="text-xs text-gray-700 truncate">{disaster.data.government_report}</p>
+                        </div>
+                      )}
+                    </Card>
+                  ))
+                )}
               </div>
             )}
           </div>

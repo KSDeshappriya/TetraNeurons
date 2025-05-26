@@ -6,7 +6,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 cred = credentials.Certificate("./serviceAccountKey.json")
-firebase_admin.initialize_app(cred)
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'disaster-b6076.firebasestorage.app',
+    'databaseURL': 'https://disaster-b6076-default-rtdb.firebaseio.com/'
+})
 
 # Import all routers (dont change the import position)
 from app.api.auth import router as auth_router

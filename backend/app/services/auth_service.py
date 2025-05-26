@@ -94,7 +94,7 @@ class AuthService:
                 raise HTTPException(status_code=401, detail="Invalid email or password")
             
             # Calculate and update user's geohash
-            geohash_value = geohash.encode(login_data.latitude, login_data.longitude,precision=6)
+            geohash_value = geohash.encode(login_data.latitude, login_data.longitude,precision=4)
             
             # Update user's location and geohash in Firestore
             self.db.collection("users").document(user_data["uid"]).update({

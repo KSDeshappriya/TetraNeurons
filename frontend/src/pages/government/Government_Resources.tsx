@@ -4,22 +4,15 @@ import { Button } from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import NavigationBar from '../../components/layout/Navigationbar';
 import Footer from '../../components/layout/Footer';
+import { addResource } from '../../services/emergency';
 
-interface ResourceItem {
-  id: string;
-  type: 'shelter' | 'supply' | 'medical';
-  name: string;
-  description: string;
-  longitude: number;
-  latitude: number;
-  distance: number;
-  status: 'open' | 'closed' | 'limited';
-  hours: string;
-  contact?: string;
-  capacity?: { total: number; available: number; };
-}
+const useLocation = () => ({
+  search: window.location.search
+});
+
 
 interface FormData {
+  disasterId: string;
   type: 'shelter' | 'supply' | 'medical';
   name: string;
   description: string;
@@ -33,6 +26,7 @@ interface FormData {
 
 const ResourceAddingPage: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
+    disasterId: '',
     type: 'shelter',
     name: '',
     description: '',
@@ -46,7 +40,14 @@ const ResourceAddingPage: React.FC = () => {
 
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const disasterId = searchParams.get('id');
+  // Redirect if no disaster ID
+  if (!disasterId) {
+    window.history.back();
+    return null;
+  }
   const resourceTypes = [
     { value: 'shelter', label: 'Shelter', icon: '🏠', description: 'Emergency housing and accommodation' },
     { value: 'supply', label: 'Supply', icon: '📦', description: 'Food, water, and essential supplies' },
@@ -93,34 +94,13 @@ const ResourceAddingPage: React.FC = () => {
     setIsSubmitting(true);
     
     try {
-      // Create resource object
-      const newResource: ResourceItem = {
-        id: `RES-${Date.now()}`, // Generate unique ID
-        type: formData.type,
-        name: formData.name.trim(),
-        description: formData.description.trim(),
-        longitude: Number(formData.longitude),
-        latitude: Number(formData.latitude),
-        distance: 0, // Will be calculated based on user location
-        status: formData.status,
-        hours: formData.hours.trim(),
-        contact: formData.contact.trim() || undefined,
-        capacity: formData.totalCapacity ? {
-          total: Number(formData.totalCapacity),
-          available: Number(formData.totalCapacity) // Available equals total capacity
-        } : undefined
-      };
-
-      // Here you would typically send the data to your API
-      console.log('New Resource:', newResource);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await addResource(disasterId, formData);
       
       alert('Resource added successfully!');
       
       // Reset form
       setFormData({
+        disasterId: disasterId,
         type: 'shelter',
         name: '',
         description: '',
@@ -144,6 +124,7 @@ const ResourceAddingPage: React.FC = () => {
     // Navigate back or reset form
     if (window.confirm('Are you sure you want to cancel? All unsaved changes will be lost.')) {
       setFormData({
+        disasterId: disasterId,
         type: 'shelter',
         name: '',
         description: '',

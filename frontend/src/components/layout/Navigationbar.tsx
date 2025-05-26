@@ -6,10 +6,6 @@ import {
   Shield,
   Menu,
   X,
-  Users,
-  AlertTriangle,
-  Settings,
-  BarChart3,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 import { authService} from '../../services/auth';
@@ -49,35 +45,9 @@ const NavigationBar: React.FC = () => {
       },
     ];
 
-    // Add role-specific items
-    const roleSpecificItems = [
-      {
-        name: 'Emergency Response',
-        href: '/emergency',
-        icon: AlertTriangle,
-        roles: ['first_responder'] as UserRole[],
-      },
-      {
-        name: 'Volunteer Management',
-        href: '/volunteers',
-        icon: Users,
-        roles: ['government'] as UserRole[],
-      },
-      {
-        name: 'Analytics',
-        href: '/analytics',
-        icon: BarChart3,
-        roles: ['government', 'first_responder'] as UserRole[],
-      },
-      {
-        name: 'Settings',
-        href: '/settings',
-        icon: Settings,
-        roles: ['government'] as UserRole[],
-      },
-    ];
+    
 
-    const allItems = [...baseItems, ...roleSpecificItems];
+    const allItems = [...baseItems, ];
     
     // Filter items based on user role
     return allItems.filter(item => 

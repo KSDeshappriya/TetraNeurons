@@ -1,77 +1,105 @@
-import React, { useState } from 'react';
-import { 
+import React, { useState, useEffect } from 'react';
+import {
   Building, Package, Heart, PhoneCall, Bus, BookOpen,
-  MapPin, Clock,  Navigation, Phone, Info
+  MapPin, Clock, Navigation, Phone, Info, Loader, Users, Camera
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+const useLocation = () => ({
+  search: window.location.search
+});
 import Footer from '../../components/layout/Footer';
+import { fetchDisasterData } from '../../services/check_users';
 import NavigationBar from '../../components/layout/Navigationbar';
-import { useLocation } from 'react-router-dom';
-
+import { getResourcesByDisaster } from '../../services/check_resource';
 
 interface ResourceItem {
   id: string;
-  type: 'shelter' | 'supply' | 'medical' | 'transportation';
+  type: 'shelter' | 'supply' | 'medical'
   name: string;
   description: string;
   longitude: number;
   latitude: number;
-  distance: number;
-  status: 'open' | 'closed' | 'limited';
+  distance?: number;
+  status: string;
   hours: string;
   contact?: string;
   capacity?: { total: number; available: number; };
 }
 
+interface DisasterData {
+  ai_processing_time: number;
+  citizen_survival_guide: string;
+  created_at: number;
+  disaster_id: string;
+  emergency_type: string;
+  geohash: string;
+  government_report: string;
+  image_url: string;
+  latitude: number;
+  longitude: number;
+  people_count: string;
+  situation: string;
+  status: string;
+  submitted_time: number;
+  urgency_level: string;
+  user_id: string;
+}
+
 interface EmergencyContact {
-  id: string;
+  uid: string;
   name: string;
-  number: string;
+  phone: string;
   description: string;
   longitude: number;
   latitude: number;
-  role: string; // Added role property
+  role: string;
 }
 
 const UserResources: React.FC = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const Param = searchParams.get('id');
-  if(Param == null){
-    window.history.back()
-  }
+  const disasterId = searchParams.get('id');
+  const [resources, setResources] = useState<ResourceItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  // Mock data - expanded for demonstration
-  const resources: ResourceItem[] = [
-    {
-      id: 'shelter-001',
-      type: 'shelter',
-      name: 'Central Community Center',
-      description: 'Emergency shelter with food, water, and basic medical supplies',
-      longitude: 40.7128,
-      latitude: -74.0060,
-      distance: 1.2,
-      status: 'open',
-      hours: '24/7 during emergency',
-      capacity: { total: 200, available: 75 }
-    },
+  const [disasterData, setDisasterData] = useState<DisasterData | null>(null);
+  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  ];
 
-  const emergencyContacts: EmergencyContact[] = [
-    {
-      id: 'emergency-911',
-      name: 'Emergency Services',
-      number: '911',
-      description: 'Police, Fire, Medical Emergency',
-      longitude: 40.7128,
-      latitude: -74.0060,
-      role: 'emergency', // Added role value
-    },
-  ];
+  // Disaster data
+  useEffect(() => {
+    if (!disasterId) return;
 
-  // Resource category data for concise mapping
+    fetchDisasterData(
+      disasterId,
+      setDisasterData,
+      setEmergencyContacts,
+      setError,
+      setLoading
+    );
+  }, [disasterId]);
+
+  // Resources
+  useEffect(() => {
+    if (!disasterId) return;
+
+    getResourcesByDisaster(disasterId)
+      .then(setResources)
+      .catch((err) => {
+        console.error("Failed to fetch resources:", err);
+        setError("Failed to load resource data.");
+      });
+  }, [disasterId]);
+
+  // Render fallback if no ID
+  if (!disasterId) {
+    window.history.back();
+    return null;
+  }
+
+
   const resourceCategories = [
     {
       id: 'shelter',
@@ -99,10 +127,10 @@ const UserResources: React.FC = () => {
       label: 'Contacts',
       icon: PhoneCall,
       iconClass: 'text-primary-600',
-      description: 'Emergency numbers',
+      description: `${emergencyContacts.length} available`,
     },
     {
-      id: 'AI Insights',
+      id: 'insights',
       label: 'AI Insights',
       icon: BookOpen,
       iconClass: 'text-gray-600',
@@ -110,8 +138,8 @@ const UserResources: React.FC = () => {
     },
   ];
 
-  const filteredResources = selectedCategory === 'all' 
-    ? resources 
+  const filteredResources = selectedCategory === 'all'
+    ? resources
     : resources.filter(r => r.type === selectedCategory);
 
   const getStatusBadge = (status: string) => {
@@ -130,7 +158,6 @@ const UserResources: React.FC = () => {
   const renderCapacityBar = (total: number, available: number) => {
     const percentage = Math.floor((available / total) * 100);
     const colorClass = percentage > 50 ? 'bg-green-500' : percentage > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    
 
     return (
       <div className="mt-2">
@@ -145,79 +172,113 @@ const UserResources: React.FC = () => {
     );
   };
 
+  const renderMarkdown = (text: string) => {
+    // Simple markdown parser for basic formatting
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/### (.*?)$/gm, '<h3 class="text-lg font-semibold mb-2 mt-4">$1</h3>')
+      .replace(/## (.*?)$/gm, '<h2 class="text-xl font-semibold mb-3 mt-6">$1</h2>')
+      .replace(/# (.*?)$/gm, '<h1 class="text-2xl font-bold mb-4 mt-8">$1</h1>')
+      .replace(/\n\n/g, '</p><p class="mb-4">')
+      .replace(/\n/g, '<br />');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading disaster information...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+          <button
+            onClick={() => window.history.back()}
+            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <>
-    <NavigationBar />
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Emergency Resources</h1>
-          <p className="text-gray-600 mt-1">Find shelter, supplies, and assistance during emergencies</p>
-        </div>
+    <><NavigationBar />
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
 
-        {/* Resource Categories */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-          {resourceCategories.map(cat => {
-            const Icon = cat.icon;
-            const isSelected = selectedCategory === cat.id;
-            return (
-              <div
-                key={cat.id}
-                className={`flex flex-col items-center justify-center p-4 hover:shadow-md transition-shadow cursor-pointer rounded-lg border-2 ${isSelected ? 'border-blue-400 bg-blue-50' : 'border-transparent bg-white'}`}
-                onClick={() => setSelectedCategory(cat.id)}
-              >
-                <Icon className={`h-10 w-10 mb-2 ${cat.iconClass}`} />
-                <h3 className="font-medium text-gray-900">{cat.label}</h3>
-                <p className="text-xs text-gray-600 text-center mt-1">{cat.description}</p>
-              </div>
-            );
-          })}
-        </div>
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Emergency Resources</h1>
+            <p className="text-gray-600 mt-1">
+              Type - {disasterData?.emergency_type}
+            </p>
+          </div>
 
-        {/* Big Map for resources (not for guides/contacts) */}
-        {((!['guides'].includes(selectedCategory) && filteredResources.length > 0) || selectedCategory === 'contacts') && (
-          <div className="mb-8 rounded-lg overflow-hidden border border-gray-200" style={{ height: '400px' }}>
-            <MapContainer
-              center={
-                selectedCategory === 'contacts'
-                  ? [
-                      emergencyContacts.reduce((sum, c) => sum + c.latitude, 0) / emergencyContacts.length,
-                      emergencyContacts.reduce((sum, c) => sum + c.longitude, 0) / emergencyContacts.length
-                    ]
-                  : [
+          {/* Resource Categories */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+            {resourceCategories.map(cat => {
+              const Icon = cat.icon;
+              const isSelected = selectedCategory === cat.id;
+              return (
+                <div
+                  key={cat.id}
+                  className={`flex flex-col items-center justify-center p-4 hover:shadow-md transition-shadow cursor-pointer rounded-lg border-2 ${isSelected ? 'border-blue-400 bg-blue-50' : 'border-transparent bg-white'}`}
+                  onClick={() => setSelectedCategory(cat.id)}
+                >
+                  <Icon className={`h-10 w-10 mb-2 ${cat.iconClass}`} />
+                  <h3 className="font-medium text-gray-900">{cat.label}</h3>
+                  <p className="text-xs text-gray-600 text-center mt-1">{cat.description}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Map */}
+          {((!['insights'].includes(selectedCategory) && filteredResources.length > 0) || selectedCategory === 'contacts') && (
+            <div className="mb-8 rounded-lg overflow-hidden border border-gray-200" style={{ height: '400px' }}>
+              <MapContainer
+                center={
+                  selectedCategory === 'contacts'
+                    ? [disasterData?.latitude || 40.7128, disasterData?.longitude || -74.0060]
+                    : [
                       filteredResources.reduce((sum, r) => sum + r.latitude, 0) / filteredResources.length,
                       filteredResources.reduce((sum, r) => sum + r.longitude, 0) / filteredResources.length
                     ]
-              }
-              zoom={13}
-              style={{ height: '100%', width: '100%' }}
-              scrollWheelZoom={true}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {/* Weather overlay tile layer (OpenWeatherMap) */}
-              <TileLayer
-                attribution='Weather data © <a href="https://openweathermap.org/">OpenWeatherMap</a>'
-                url={`https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=YOUR_OPENWEATHERMAP_API_KEY`}
-                opacity={0.5}
-              />
-              {selectedCategory === 'contacts'
-                ? emergencyContacts.map(contact => (
-                    <Marker key={contact.id} position={[contact.latitude, contact.longitude]}>
+                }
+                zoom={13}
+                style={{ height: '100%', width: '100%' }}
+                scrollWheelZoom={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {selectedCategory === 'contacts'
+                  ? emergencyContacts.map(contact => (
+                    <Marker key={contact.uid} position={[contact.latitude, contact.longitude]}>
                       <Popup>
                         <div>
                           <strong>{contact.name}</strong><br />
                           {contact.description}<br />
                           <span>Role: {contact.role}</span><br />
-                          <span>Phone: <a href={`tel:${contact.number}`}>{contact.number}</a></span>
+                          <span>Phone: <a href={`tel:${contact.phone}`}>{contact.phone}</a></span>
                         </div>
                       </Popup>
                     </Marker>
                   ))
-                : filteredResources.map(resource => (
+                  : filteredResources.map(resource => (
                     <Marker key={resource.id} position={[resource.latitude, resource.longitude]}>
                       <Popup>
                         <div>
@@ -230,121 +291,174 @@ const UserResources: React.FC = () => {
                       </Popup>
                     </Marker>
                   ))}
-            </MapContainer>
-          </div>
-        )}
+              </MapContainer>
+            </div>
+          )}
 
-        {/* Resources */}
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          {selectedCategory === 'all' ? 'All Resources Near You' : `${resourceCategories.find(c => c.id === selectedCategory)?.label} Near You`}
-        </h2>
+          {/* Content based on selected category */}
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            {selectedCategory === 'all' ? 'All Resources Near You' : `${resourceCategories.find(c => c.id === selectedCategory)?.label} Near You`}
+          </h2>
 
-        {selectedCategory === 'contacts' ? (
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="font-medium text-gray-900 mb-4">All Emergency Contact Numbers</h3>
-            <div>
-              {emergencyContacts.map(contact => (
-                <div key={contact.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-medium text-gray-900">{contact.name}</div>
-                    <div className="text-sm text-gray-600">{contact.description}</div>
-                  </div>
-                  <a
-                    href={`tel:${contact.number}`}
-                    className="bg-red-600 text-white px-4 py-2 rounded-md font-mono hover:bg-red-700 transition-colors flex items-center"
-                  >
-                    <Phone className="h-4 w-4 mr-1" />
-                    {contact.number.startsWith('+1') ? contact.number.replace('+1', '').replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3') : contact.number}
-                  </a>
-                </div>
-              ))}
-               </div>
-          </div>
-        ) : selectedCategory === 'Insights' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-           
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredResources.map(resource => {
-              const typeIcons = {
-                shelter: Building,
-                supply: Package,
-                medical: Heart,
-                transportation: Bus
-              };
-              const Icon = typeIcons[resource.type] || Info;
-              
-              return (
-                <div key={resource.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="sm:w-12 flex items-center justify-center">
-                      <Icon className="h-8 w-8 text-blue-600" />
+          {selectedCategory === 'contacts' ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="font-medium text-gray-900 mb-4">Emergency Contacts</h3>
+              <div className="space-y-3">
+                {emergencyContacts.map(contact => (
+                  <div key={contact.uid} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium text-gray-900">{contact.name}</div>
+                      <div className="text-sm text-gray-600">{contact.description}</div>
+                      <div className="text-xs text-gray-500 capitalize">{contact.role}</div>
                     </div>
-                    <div className="flex-1">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-lg font-semibold text-gray-900">{resource.name}</h3>
-                            {getStatusBadge(resource.status)}
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">{resource.description}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600 mb-3">
-                        <div className="flex items-center">
-                          <MapPin className="h-4 w-4 mr-1 text-gray-500" />
-                          <span>{resource.distance} miles away</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1 text-gray-500" />
-                          <span>{resource.hours}</span>
-                        </div>
-                        {resource.contact && (
-                          <div className="flex items-center">
-                            <Phone className="h-4 w-4 mr-1 text-gray-500" />
-                            <a href={`tel:${resource.contact}`} className="underline text-blue-600 hover:text-blue-800">{resource.contact}</a>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {resource.capacity && renderCapacityBar(resource.capacity.total, resource.capacity.available)}
-                      
-                      <div className="flex gap-3 mt-4">
-                        <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors flex items-center">
-                          <Navigation className="h-4 w-4 mr-2" />
-                          Get Directions
-                        </button>
-                        
-                        <button className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
-                          resource.type === 'medical' 
-                            ? 'bg-red-600 text-white hover:bg-red-700' 
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}>
-                          <Icon className="h-4 w-4 mr-2" />
-                          {resource.type === 'shelter' ? 'Reserve Spot' : 
-                           resource.type === 'medical' ? 'Request Assistance' :
-                           resource.type === 'supply' ? 'Request Supplies' :
-                           'Schedule Pickup'}
-                        </button>
-                      </div>
-                    </div>
+                    <a
+                      href={`tel:${contact.phone}`}
+                      className={`px-4 py-2 rounded-md font-mono hover:opacity-80 transition-colors flex items-center text-white ${contact.role === 'emergency' ? 'bg-red-600' :
+                        contact.role === 'first_responder' ? 'bg-blue-600' : 'bg-green-600'
+                        }`}
+                    >
+                      <Phone className="h-4 w-4 mr-1" />
+                      {contact.phone}
+                    </a>
                   </div>
-                </div>
-              );
-            })}
-            
-            {filteredResources.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No {selectedCategory} resources available in your area.</p>
+                ))}
               </div>
-            )}
-            <Footer />
-          </div>
-        )}
+            </div>
+          ) : selectedCategory === 'insights' ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="font-medium text-gray-900 mb-4">AI Safety Insights</h3>
+              <div className="py-2 border rounded-lg bg-white shadow-sm">
+                <div className="p-4 sm:p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Request & Contact Details</h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Emergency Type</label>
+                        <p className="text-gray-900 capitalize">{disasterData?.emergency_type}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Urgency Level</label>
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium`}>
+                          {disasterData?.urgency_level}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">People Count</label>
+                      <div className="flex items-center mt-1">
+                        <Users className="w-4 h-4 text-gray-400 mr-2" />
+                        <p className="text-gray-900">{disasterData?.people_count} people affected</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {disasterData?.image_url && (
+                <div className="py-2 border rounded-lg bg-white shadow-sm">
+                  <div className="p-4 sm:p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Camera className="w-5 h-5 mr-2" />
+                      Submitted Evidence
+                    </h3>
+                    <div className="relative">
+                      <img
+                        src={disasterData?.image_url}
+                        alt="Emergency evidence"
+                        className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+
+                      />
+
+                    </div>
+                  </div>
+                </div>
+              )}
+              {disasterData?.citizen_survival_guide ? (
+                <div
+                  className="prose max-w-none"
+                  dangerouslySetInnerHTML={{
+                    __html: '<p class="mb-4">' + renderMarkdown(disasterData.citizen_survival_guide) + '</p>'
+                  }}
+                />
+              ) : (
+                <p className="text-gray-500">No AI insights available for this disaster.</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredResources.map(resource => {
+                const typeIcons = {
+                  shelter: Building,
+                  supply: Package,
+                  medical: Heart,
+                  transportation: Bus
+                };
+                const Icon = typeIcons[resource.type] || Info;
+
+                return (
+                  <div key={resource.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="sm:w-12 flex items-center justify-center">
+                        <Icon className="h-8 w-8 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-lg font-semibold text-gray-900">{resource.name}</h3>
+                              {getStatusBadge(resource.status)}
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">{resource.description}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600 mb-3">
+                          <div className="flex items-center">
+                            <MapPin className="h-4 w-4 mr-1 text-gray-500" />
+                            <span>{resource.distance} miles away</span>
+                          </div>
+                          <div className="flex items-center">
+                            <Clock className="h-4 w-4 mr-1 text-gray-500" />
+                            <span>{resource.hours}</span>
+                          </div>
+                          {resource.contact && (
+                            <div className="flex items-center">
+                              <Phone className="h-4 w-4 mr-1 text-gray-500" />
+                              <a href={`tel:${resource.contact}`} className="underline text-blue-600 hover:text-blue-800">{resource.contact}</a>
+                            </div>
+                          )}
+                        </div>
+
+                        {resource.capacity && renderCapacityBar(resource.capacity.total, resource.capacity.available)}
+
+                        <div className="flex gap-3 mt-4">
+                          <button onClick={() =>
+                            window.open(`https://www.google.com/maps?q=${resource.latitude},${resource.longitude}`, "_blank")
+                          } className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors flex items-center">
+                            <Navigation className="h-4 w-4 mr-2" />
+                            Get Directions
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredResources.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No {selectedCategory} resources available in your area.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <Footer />
       </div>
-    </div>
     </>
   );
 };

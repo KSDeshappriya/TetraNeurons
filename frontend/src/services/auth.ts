@@ -61,9 +61,10 @@ export interface TokenPayload {
 class AuthService {
   private token: string | null = null;
   private tokenPayload: TokenPayload | null = null;
+  private readonly tokenKey = 'access_token'; // Consistent token key
 
   constructor() {
-    this.token = localStorage.getItem('access_token');
+    this.token = localStorage.getItem(this.tokenKey);
     if (this.token) {
       this.loadTokenPayload();
     }
@@ -81,7 +82,8 @@ class AuthService {
           .join('')
       );
       return JSON.parse(jsonPayload);
-    } catch {
+    } catch (error) {
+      console.error('Error parsing JWT:', error);
       return null;
     }
   }
@@ -89,25 +91,30 @@ class AuthService {
   private loadTokenPayload() {
     if (this.token) {
       this.tokenPayload = this.parseJwt(this.token);
+      // Check if token is expired
       if (this.tokenPayload && this.tokenPayload.exp * 1000 < Date.now()) {
+        console.log('Token expired, logging out');
         this.logout();
       }
     }
   }
 
   private setupAxiosInterceptors() {
+    // Request interceptor
     axios.interceptors.request.use((config) => {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem(this.tokenKey);
       if (token && !config.url?.includes('/auth/') && !config.url?.includes('/public/')) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       return config;
     });
 
+    // Response interceptor
     axios.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
+          console.log('401 Unauthorized, logging out');
           this.logout();
           window.location.href = '/auth/signin';
         }
@@ -116,47 +123,95 @@ class AuthService {
     );
   }
 
-  async signup(userData: UserSignup) {
-    const response = await axios.post(`${API_BASE_URL}/auth/signup`, userData);
-    return response.data;
+  // Public methods
+  getToken(): string | null {
+    return this.token;
   }
 
-  async login(loginData: UserLogin): Promise<Token> {
-    const response = await axios.post(`${API_BASE_URL}/auth/login`, loginData);
-    const token = response.data;
-    localStorage.setItem('access_token', token.access_token);
-    this.token = token.access_token;
+  setToken(token: string): void {
+    localStorage.setItem(this.tokenKey, token);
+    this.token = token;
     this.loadTokenPayload();
-    return token;
   }
 
-  async getUserProfile(): Promise<UserProfile> {
-    const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_BASE_URL}/private/profile`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    return response.data;
-  }
-
-  logout() {
-    localStorage.removeItem('access_token');
+  removeToken(): void {
+    localStorage.removeItem(this.tokenKey);
     this.token = null;
     this.tokenPayload = null;
   }
 
+  getTokenPayload(): TokenPayload | null {
+    return this.tokenPayload;
+  }
+
+  async signup(userData: UserSignup) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/signup`, userData);
+      return response.data;
+    } catch (error) {
+      console.error('Signup error:', error);
+      throw error;
+    }
+  }
+
+  async login(loginData: UserLogin): Promise<Token> {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, loginData);
+      const token = response.data;
+      
+      // Store token using consistent method
+      this.setToken(token.access_token);
+      
+      return token;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  }
+
+  async getUserProfile(): Promise<UserProfile> {
+    try {
+      const token = this.getToken(); // Use consistent token retrieval
+      if (!token) {
+        throw new Error('No token available');
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/private/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get profile error:', error);
+      throw error;
+    }
+  }
+
+  logout() {
+    this.removeToken();
+    // Optional: Clear any other user-related data
+    // Redirect will be handled by axios interceptor or calling component
+  }
+
   isAuthenticated(): boolean {
-    return !!this.token && !!this.tokenPayload && this.tokenPayload.exp * 1000 > Date.now();
+    const hasToken = !!this.token;
+    const hasValidPayload = !!this.tokenPayload;
+    const isNotExpired = this.tokenPayload ? this.tokenPayload.exp * 1000 > Date.now() : false;
+    
+    const isAuth = hasToken && hasValidPayload && isNotExpired;
+    
+    if (!isAuth && hasToken) {
+      // Clean up invalid token
+      this.logout();
+    }
+    
+    return isAuth;
   }
 
   getUserRole(): UserRole | null {
     return this.tokenPayload?.role || null;
-  }
-
-  getTokenPayload(): TokenPayload | null {
-    return this.tokenPayload;
   }
 
   hasRole(role: UserRole): boolean {
@@ -167,6 +222,7 @@ class AuthService {
     const userRole = this.getUserRole();
     return userRole ? roles.includes(userRole) : false;
   }
+
 }
 
 export const authService = new AuthService();

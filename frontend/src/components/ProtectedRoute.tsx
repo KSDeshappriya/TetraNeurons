@@ -15,18 +15,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAuth = true 
 }) => {
   const location = useLocation();
-  // const isAuthenticated = authService.isAuthenticated();
-  // const userRole = authService.getUserRole();
+  const isAuthenticated = authService.isAuthenticated();
+  const userRole = authService.getUserRole();
 
-  // If authentication is required but user is not authenticated
-  // if (requireAuth && !isAuthenticated) {
-  //   return <Navigate to="/auth/signin" state={{ from: location }} replace />;
-  // }
+  if (requireAuth && !isAuthenticated) {
+    return <Navigate to="/auth/signin" state={{ from: location }} replace />;
+  }
 
-  // If specific roles are required
-  // if (allowedRoles.length > 0 && (!userRole || !allowedRoles.includes(userRole))) {
-  //   return <Navigate to="/unauthorized" replace />;
-  // }
+  if (allowedRoles.length > 0 && (!userRole || !allowedRoles.includes(userRole))) {
+    return <Navigate to="/unauthorized" replace />;
+  }
 
   return <>{children}</>;
 };
