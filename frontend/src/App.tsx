@@ -99,7 +99,7 @@ const App: React.FC = () => {
           <VolunteerDashboard />
         </VolunteerRoute>
       } />
-      <Route path="/vol/resources" element={
+      <Route path="/vol/report" element={
         <VolunteerRoute>
           <VolResources />
         </VolunteerRoute>
