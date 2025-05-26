@@ -1,6 +1,7 @@
-# Emergency service logic for handling emergency reports
+from app.services.ml_model import analyze_image_with_summary, disaster_model, yolo_model, device
+from io import BytesIO
 
-def handle_emergency_report(
+async def handle_emergency_report(
     emergencyType,
     urgencyLevel,
     situation,
@@ -10,6 +11,7 @@ def handle_emergency_report(
     image,
     user
 ):
-    # Placeholder: implement logic to process/store emergency report
-    # All arguments are passed from the API endpoint
-    pass
+    if (image is not None):
+        image_bytes = await image.read()
+        result = analyze_image_with_summary(BytesIO(image_bytes),disaster_model, yolo_model, device)
+        print("AI Summary:", result)

@@ -27,7 +27,7 @@ async def emergency_report(
     current_user: UserProfile = Depends(require_user)
 ):
     # Call the emergency service function (placeholder for future logic)
-    emergency_service.handle_emergency_report(
+    await emergency_service.handle_emergency_report(
         emergencyType=emergencyType,
         urgencyLevel=urgencyLevel,
         situation=situation,
@@ -37,4 +37,5 @@ async def emergency_report(
         image=image,
         user=current_user
     )
+
     return {"status": "received"}
