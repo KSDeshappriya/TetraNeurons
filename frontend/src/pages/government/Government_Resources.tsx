@@ -317,7 +317,7 @@ const ResourceAddingPage: React.FC = () => {
                       <h3 className="text-md font-medium text-gray-800 mb-4">Contact & Operational Details</h3>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                          <label className="block text-sm font-medium text-gray-700 mb-2  items-center">
                             <Clock className="w-4 h-4 mr-1" />
                             Operating Hours *
                           </label>
@@ -339,7 +339,7 @@ const ResourceAddingPage: React.FC = () => {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                          <label className="block text-sm font-medium text-gray-700 mb-2  items-center">
                             <Phone className="w-4 h-4 mr-1" />
                             Contact Information
                           </label>

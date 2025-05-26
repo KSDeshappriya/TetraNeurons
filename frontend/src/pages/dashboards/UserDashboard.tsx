@@ -14,7 +14,6 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import VideoFrameGrid from '../../components/VideoFrameGrid';
 import { sendEmergencyReport } from '../../services/emergency';
 import { Button } from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -67,10 +66,8 @@ const UserDashboard: React.FC = () => {
   const [urgencyLevel, setUrgencyLevel] = useState<string>('');
   const [situation, setSituation] = useState<string>('');
   const [peopleCount, setPeopleCount] = useState<string>('');
-  const [showVideoGrid, setShowVideoGrid] = useState(false);
-  const [videoGridKey, setVideoGridKey] = useState(0);
-  const [videoGridRecording, setVideoGridRecording] = useState(false);
-  const [videoGridImage, setVideoGridImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [alertOpen, setAlertOpen] = useState(false);
@@ -105,7 +102,7 @@ const UserDashboard: React.FC = () => {
 
   ];
 
-    const handleSubmit = async (e: React.FormEvent<HTMLButtonElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!emergencyActive) {
       setAlertMessage('Please activate emergency switch to report');
@@ -130,10 +127,8 @@ const UserDashboard: React.FC = () => {
     formData.append('peopleCount', peopleCount);
     formData.append('latitude', String(userLocation.latitude));
     formData.append('longitude', String(userLocation.longitude));
-    if (videoGridImage) {
-      // Convert base64 to blob
-      const blob = await (await fetch(videoGridImage)).blob();
-      formData.append('image', blob, 'emergency.jpg');
+    if (imageFile) {
+      formData.append('image', imageFile, imageFile.name);
     }
     // Use the service for API call
     await sendEmergencyReport(formData);
@@ -145,7 +140,8 @@ const UserDashboard: React.FC = () => {
     setUrgencyLevel('');
     setSituation('');
     setPeopleCount('');
-    setVideoGridImage(null);
+    setImageFile(null);
+    setImagePreview(null);
   };
 
   const handleSituationChange = (e: ChangeEvent<HTMLTextAreaElement>): void => {
@@ -156,7 +152,18 @@ const UserDashboard: React.FC = () => {
     setPeopleCount(e.target.value);
   };
 
-const formatDate = (dateString: string): string => {
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImageFile(null);
+      setImagePreview(null);
+    }
+  };
+
+  const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
@@ -188,22 +195,6 @@ const formatDate = (dateString: string): string => {
 
   const handleUrgencyLevelSelect = (levelId: string): void => {
     setUrgencyLevel(levelId);
-  };
-
-  const handleRecordVideoGrid = () => {
-    setShowVideoGrid(true);
-    setVideoGridKey(prev => prev + 1); // force remount for fresh recording
-    setVideoGridRecording(true);
-  };
-  const handleCloseVideoGrid = () => {
-    setShowVideoGrid(false);
-    setVideoGridRecording(false);
-  };
-
-  const handleImageReady = (imageDataUrl: string) => {
-    setVideoGridImage(imageDataUrl); // Store the image for form submission
-    setShowVideoGrid(false);
-    setVideoGridRecording(false);
   };
 
   const handleGetLocation = () => {
@@ -391,28 +382,20 @@ const formatDate = (dateString: string): string => {
                     </div>
                   </div>
 
-                  {/* Video Record Only */}
+                  {/* Video/Image Evidence */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Video Evidence (Optional)
+                      Image Evidence (Optional)
                     </label>
-                    <div className="flex gap-2 items-center">
-                      {!videoGridRecording && (
-                        <button
-                          type="button"
-                          onClick={handleRecordVideoGrid}
-                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          Start 9s Recording
-                        </button>
-                      )}
-                    </div>
-                    {showVideoGrid && (
-                      <VideoFrameGrid key={videoGridKey} onImageReady={handleImageReady} onClose={handleCloseVideoGrid} />
-                    )}
-                    {videoGridImage && (
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {imagePreview && (
                       <div className="mt-2">
-                        <img src={videoGridImage} alt="Frame Grid Preview" className="border rounded shadow max-w-xs" />
+                        <img src={imagePreview} alt="Preview" className="border rounded shadow max-w-xs" />
                         <div className="text-green-700 text-sm mt-1">Image attached for submission</div>
                       </div>
                     )}
