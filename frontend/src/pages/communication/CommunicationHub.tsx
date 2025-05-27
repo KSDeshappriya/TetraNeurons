@@ -22,6 +22,8 @@ const CommunicationHub: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [username] = useState("Guest" + Math.floor(Math.random() * 10000));
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredMessages, setFilteredMessages] = useState<Message[]>([]);
   
   useEffect(() => {
     const chatRef = ref(db, "messages");
@@ -34,6 +36,18 @@ const CommunicationHub: React.FC = () => {
       setMessages((prev) => [...prev, msgWithTimestamp]);
     });
   }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredMessages([]);
+    } else {
+      const filtered = messages.filter((msg) => 
+        msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        msg.user.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredMessages(filtered);
+    }
+  }, [searchQuery, messages]);
 
   const sendMessage = () => {
     if (input.trim()) {
@@ -77,9 +91,11 @@ const CommunicationHub: React.FC = () => {
     }
   };
 
-  // Group messages by date
+  // Group messages by date - use filtered messages when search is active
   const messagesByDate: Record<string, Message[]> = {};
-  messages.forEach((message) => {
+  const messagesToDisplay = searchQuery.trim() !== "" ? filteredMessages : messages;
+
+  messagesToDisplay.forEach((message) => {
     if (!message.timestamp) return;
     
     const date = formatDate(message.timestamp);
@@ -118,8 +134,15 @@ const CommunicationHub: React.FC = () => {
                   <input
                     placeholder="Search messages"
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
+                {searchQuery.trim() !== "" && (
+                  <div className="mt-2 text-sm text-gray-500">
+                    Found {filteredMessages.length} {filteredMessages.length === 1 ? 'message' : 'messages'}
+                  </div>
+                )}
               </div>
               
               {/* Participant list */}
@@ -171,63 +194,71 @@ const CommunicationHub: React.FC = () => {
               
               {/* Messages area */}
               <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-                {Object.entries(messagesByDate).map(([date, dateMessages]) => (
-                  <div key={date} className="mb-6">
-                    <div className="flex justify-center mb-4">
-                      <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">{date}</span>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {dateMessages.map((msg, idx) => (
-                        <div 
-                          key={idx} 
-                          className={`flex ${msg.user === username ? 'justify-end' : 'justify-start'}`}
-                        >
-                          {msg.user !== username && (
-                            <img 
-                              src={`https://api.dicebear.com/6.x/initials/svg?seed=${msg.user}`}
-                              alt={msg.user} 
-                              className="h-10 w-10 rounded-full mr-3 flex-shrink-0"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = 'https://via.placeholder.com/40?text=U';
-                              }}
-                            />
-                          )}
-                          
-                          <div 
-                            className={`max-w-[70%] ${
-                              msg.user === username 
-                                ? 'bg-blue-100 text-blue-900 rounded-l-lg rounded-br-lg' 
-                                : 'bg-white border border-gray-200 rounded-r-lg rounded-bl-lg'
-                            } p-3 shadow-sm`}
-                          >
-                            {msg.user !== username && (
-                              <div className="font-medium text-sm text-gray-900 mb-1">{msg.user}</div>
-                            )}
-                            <p className="text-sm">{msg.content}</p>
-                            
-                            <div className="text-xs text-gray-500 mt-1 text-right">
-                              {msg.timestamp && formatTime(msg.timestamp)}
-                            </div>
-                          </div>
-                          
-                          {msg.user === username && (
-                            <img 
-                              src={`https://api.dicebear.com/6.x/initials/svg?seed=${msg.user}`}
-                              alt="You" 
-                              className="h-10 w-10 rounded-full ml-3 flex-shrink-0"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = 'https://via.placeholder.com/40?text=U';
-                              }}
-                            />
-                          )}
-                        </div>
-                      ))}
+                {searchQuery.trim() !== "" && filteredMessages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <p className="text-gray-500">No messages found for "{searchQuery}"</p>
                     </div>
                   </div>
-                ))}
+                ) : (
+                  Object.entries(messagesByDate).map(([date, dateMessages]) => (
+                    <div key={date} className="mb-6">
+                      <div className="flex justify-center mb-4">
+                        <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">{date}</span>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {dateMessages.map((msg, idx) => (
+                          <div 
+                            key={idx} 
+                            className={`flex ${msg.user === username ? 'justify-end' : 'justify-start'}`}
+                          >
+                            {msg.user !== username && (
+                              <img 
+                                src={`https://api.dicebear.com/6.x/initials/svg?seed=${msg.user}`}
+                                alt={msg.user} 
+                                className="h-10 w-10 rounded-full mr-3 flex-shrink-0"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'https://via.placeholder.com/40?text=U';
+                                }}
+                              />
+                            )}
+                            
+                            <div 
+                              className={`max-w-[70%] ${
+                                msg.user === username 
+                                  ? 'bg-blue-100 text-blue-900 rounded-l-lg rounded-br-lg' 
+                                  : 'bg-white border border-gray-200 rounded-r-lg rounded-bl-lg'
+                              } p-3 shadow-sm`}
+                            >
+                              {msg.user !== username && (
+                                <div className="font-medium text-sm text-gray-900 mb-1">{msg.user}</div>
+                              )}
+                              <p className="text-sm">{msg.content}</p>
+                              
+                              <div className="text-xs text-gray-500 mt-1 text-right">
+                                {msg.timestamp && formatTime(msg.timestamp)}
+                              </div>
+                            </div>
+                            
+                            {msg.user === username && (
+                              <img 
+                                src={`https://api.dicebear.com/6.x/initials/svg?seed=${msg.user}`}
+                                alt="You" 
+                                className="h-10 w-10 rounded-full ml-3 flex-shrink-0"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'https://via.placeholder.com/40?text=U';
+                                }}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
               
               {/* Message input */}
