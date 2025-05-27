@@ -5,7 +5,6 @@ import {
   MessageSquare,
   Send,
   Search,
-  Plus,
 } from "lucide-react";
 
 type Message = {
@@ -169,14 +168,6 @@ const CommunicationHub: React.FC = () => {
                       </div>
                     ))}
                 </div>
-              </div>
-              
-              {/* Create new chat button */}
-              <div className="p-3 border-t border-gray-200">
-                <button className="w-full flex items-center justify-center py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Conversation
-                </button>
               </div>
             </div>
             
