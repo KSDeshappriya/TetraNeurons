@@ -3,7 +3,6 @@ import { Home, MessageSquare, Bell, Shield, Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 import { authService } from '../../services/auth';
 import type { UserRole } from '../../services/auth';
-import geohash from 'ngeohash';
 
 const NavigationBar: React.FC = () => {
   const location = useLocation();
@@ -31,37 +30,14 @@ const NavigationBar: React.FC = () => {
 
   const getReportId = () => new URLSearchParams(location.search).get('id');
 
-const coordsToGeohash = (lat: number, lon: number): string => {
-  return geohash.encode(lat, lon, 4);
-};
+
 
   // Handle communication click with location check
   const handleCommunicationClick = (e: React.MouseEvent) => {
     e.preventDefault();
     const reportId = getReportId();
     if (!reportId) return;
-
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const userGeohash = coordsToGeohash(latitude, longitude);
-          
-          // Check if report ID starts with same geohash (location match)
-          if (reportId.startsWith(userGeohash)) {
-            window.location.href = `/private/CommunicationHub?reportId=${reportId}`;
-          } else {
-            alert('You must be in the same location as the report to access communication.');
-          }
-        },
-        (error) => {
-          console.error('Location access denied:', error);
-          alert('Location access is required to verify your proximity to the report.');
-        }
-      );
-    } else {
-      alert('Geolocation is not supported by this browser.');
-    }
+    window.location.href = `/private/CommunicationHub?reportId=${reportId}`;
   };
 
   const getDashboardUrl = () => {
