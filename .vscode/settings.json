@@ -1,0 +1,17 @@
+{
+  "files.watcherExclude": {
+    "**/.venv/**": true,
+    "**/__pycache__/**": true,
+    "**/.mypy_cache/**": true,
+    "**/.pytest_cache/**": true,
+    "**/.ruff_cache/**": true,
+    "**/.tox/**": true,
+    "**/.ipynb_checkpoints/**": true,
+    "**/.idea/**": true,
+    "**/.git/**": true,
+    "**/node_modules/**": true,
+    "**/.git/objects/**": true,
+    "**/dist/**": true
+  },
+  "search.followSymlinks": false
+}
