@@ -12,6 +12,7 @@ import Footer from '../../components/layout/Footer';
 import { fetchDisasterData } from '../../services/check_users';
 import NavigationBar from '../../components/layout/Navigationbar';
 import { getResourcesByDisaster } from '../../services/check_resource';
+import { CitizenSurvivalGuideAccordion } from '../../components/ui/CitizenSurvivalGuideAccordion';
 
 interface ResourceItem {
   id: string;
@@ -377,16 +378,7 @@ const UserResources: React.FC = () => {
                   </div>
                 </div>
               )}
-              {disasterData?.citizen_survival_guide ? (
-                <div
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{
-                    __html: '<p class="mb-4">' + renderMarkdown(disasterData.citizen_survival_guide) + '</p>'
-                  }}
-                />
-              ) : (
-                <p className="text-gray-500">No AI insights available for this disaster.</p>
-              )}
+              <CitizenSurvivalGuideAccordion disasterData={disasterData} />
             </div>
           ) : (
             <div className="space-y-4">

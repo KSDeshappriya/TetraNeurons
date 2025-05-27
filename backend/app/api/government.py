@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.services.role_service import require_government
+from app.services.First_Task_Generation import create_generate_disaster_task_graph
 from app.models.user import UserProfile
 from firebase_admin import db,firestore
-from uuid import uuid4
 
 router = APIRouter(prefix="/gov", tags=["Government"])
 
@@ -20,6 +20,8 @@ async def accept_disaster(payload: DisasterRequest, user: UserProfile = Depends(
         ref = db.reference('disasters')
         ref.child(payload.disaster_id).update({'status': 'active'})
         print(f"Disaster {payload.disaster_id} marked as active by {user.name}")
+        graph = create_generate_disaster_task_graph()
+        await graph.invoke({"disaster_id": payload.disaster_id})
         return {"message": f"Disaster {payload.disaster_id} marked as active."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")

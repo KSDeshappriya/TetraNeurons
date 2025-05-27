@@ -14,6 +14,7 @@ import NavigationBar from '../../components/layout/Navigationbar';
 import { 
   getResourcesByDisaster, 
 } from '../../services/check_resource';
+import TaskList from '../../components/ui/TaskList';
 
 interface ResourceItem {
   id: string;
@@ -367,7 +368,7 @@ const FRResources: React.FC = () => {
                   </div>
                 </div>
               )}
-              
+              <TaskList disasterId={disasterId} role='fr' />
             </div>
           ) : (
             <div className="space-y-4">

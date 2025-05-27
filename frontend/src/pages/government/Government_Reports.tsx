@@ -11,15 +11,18 @@ const useLocation = () => ({
 import Footer from '../../components/layout/Footer';
 import { fetchALLDisasterData } from '../../services/check_users';
 import NavigationBar from '../../components/layout/Navigationbar';
-import { 
-  getResourcesByDisaster, 
-  updateResourceAvailableSpace, 
-  deleteResource 
+import {
+  getResourcesByDisaster,
+  updateResourceAvailableSpace,
+  deleteResource
 } from '../../services/check_resource';
+import TaskList from '../../components/ui/TaskList';
+import { GovernmentReportAccordion } from '../../components/ui/GovernmentReportAccordion';
+import RejectButton from '../../components/ui/RejectButton';
 
 interface ResourceItem {
   id: string;
-  type: 'shelter' | 'supply' | 'medical' 
+  type: 'shelter' | 'supply' | 'medical'
   name: string;
   description: string;
   longitude: number;
@@ -251,17 +254,7 @@ const GovResources: React.FC = () => {
     );
   };
 
-  const renderMarkdown = (text: string) => {
-    // Simple markdown parser for basic formatting
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/### (.*?)$/gm, '<h3 class="text-lg font-semibold mb-2 mt-4">$1</h3>')
-      .replace(/## (.*?)$/gm, '<h2 class="text-xl font-semibold mb-3 mt-6">$1</h2>')
-      .replace(/# (.*?)$/gm, '<h1 class="text-2xl font-bold mb-4 mt-8">$1</h1>')
-      .replace(/\n\n/g, '</p><p class="mb-4">')
-      .replace(/\n/g, '<br />');
-  };
+
 
   if (loading) {
     return (
@@ -300,7 +293,7 @@ const GovResources: React.FC = () => {
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Emergency Resources</h1>
             <p className="text-gray-600 mt-1 text-sm sm:text-base">
-              Type - {disasterData?.emergency_type} 
+              Type - {disasterData?.emergency_type}
             </p>
           </div>
 
@@ -395,7 +388,7 @@ const GovResources: React.FC = () => {
                     <a
                       href={`tel:${contact.phone}`}
                       className={`px-3 sm:px-4 py-2 rounded-md font-mono hover:opacity-80 transition-colors flex items-center justify-center text-white text-sm ${contact.role === 'emergency' ? 'bg-red-600' :
-                          contact.role === 'first_responder' ? 'bg-blue-600' : 'bg-green-600'
+                        contact.role === 'first_responder' ? 'bg-blue-600' : 'bg-green-600'
                         }`}
                     >
                       <Phone className="h-4 w-4 mr-1" />
@@ -445,6 +438,12 @@ const GovResources: React.FC = () => {
                       <div>
                         <label className="text-sm font-medium text-gray-500">AI Processing Time</label>
                         <p className="text-gray-900">{disasterData?.ai_processing_time}ms</p>
+                        <button
+                          className="text-blue-600 text-sm underline mt-1"
+                          onClick={() => window.open(`/gov/ai_matrix?id=${disasterData?.disaster_id}`, '_blank')}
+                        >
+                          View AI Matrix
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -468,17 +467,13 @@ const GovResources: React.FC = () => {
                   </div>
                 </div>
               )}
-              
-              {disasterData?.government_report ? (
-                <div
-                  className="prose max-w-none text-sm sm:text-base"
-                  dangerouslySetInnerHTML={{
-                    __html: '<p class="mb-4">' + renderMarkdown(disasterData.government_report) + '</p>'
-                  }}
-                />
-              ) : (
-                <p className="text-gray-500">No AI insights available for this disaster.</p>
-              )}
+
+              <GovernmentReportAccordion disasterData={disasterData} />
+
+              <TaskList disasterId={disasterId} role='gov' />
+              <div className="flex justify-center items-center h-full">
+              <RejectButton disasterId={disasterId} />
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

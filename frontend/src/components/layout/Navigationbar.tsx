@@ -39,7 +39,7 @@ const NavigationBar: React.FC = () => {
       },
       {
         name: 'Communication',
-        href: '/communication',
+        href: '/private/CommunicationHub',
         icon: MessageSquare,
         roles: ['user', 'volunteer', 'first_responder', 'government'] as UserRole[],
       },
@@ -145,10 +145,10 @@ const NavigationBar: React.FC = () => {
             </Link>
 
             <Link
-              to="/communication"
+              to="/private/CommunicationHub"
               className={`
                 group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors
-                ${(location.pathname.startsWith('/communication') || location.pathname === '/communication')
+                ${(location.pathname.startsWith('/private/CommunicationHub') || location.pathname === '/private/CommunicationHub')
                   ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' 
                   : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                 }
@@ -157,7 +157,7 @@ const NavigationBar: React.FC = () => {
             >
               <MessageSquare 
                 className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
-                  (location.pathname.startsWith('/communication') || location.pathname === '/communication')
+                  (location.pathname.startsWith('/private/CommunicationHub') || location.pathname === '/private/CommunicationHub')
                     ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
                 }`} 
               />
@@ -255,10 +255,10 @@ const NavigationBar: React.FC = () => {
                 </Link>
 
                 <Link
-                  to="/communication"
+                  to="/private/CommunicationHub"
                   className={`
                     flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
-                    ${(location.pathname.startsWith('/communication') || location.pathname === '/communication')
+                    ${(location.pathname.startsWith('/private/CommunicationHub') || location.pathname === '/private/CommunicationHub')
                       ? 'text-blue-700 bg-blue-50' 
                       : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
                     }

@@ -24,6 +24,8 @@ import GovResources from './pages/government/Government_Reports';
 import ResourceAddingPage from './pages/government/Government_Resources';
 import FRResources from './pages/first_responder/first_responder_Resources';
 import VolResources from './pages/volunteer/VolunteerResources';
+import AIMatrixPage from './pages/government/AIMatrix';
+import CommunicationHub from './pages/communication/CommunicationHub';
 
 const App: React.FC = () => {
   return (
@@ -80,6 +82,11 @@ const App: React.FC = () => {
           <ResourceAddingPage />
         </GovernmentRoute>
       } />
+       <Route path="/gov/ai_matrix" element={
+        <GovernmentRoute>
+          <AIMatrixPage />
+        </GovernmentRoute>
+      } />
 
       {/* First Responder Routes - Short URLs */}
       <Route path="/fr" element={
@@ -106,11 +113,17 @@ const App: React.FC = () => {
       } />
 
       {/* Private/Profile Routes */}
-      <Route path="/private/*" element={
+      <Route path="/private/profile" element={
         <PrivateRoute>
           <Profile />
         </PrivateRoute>
       } />
+
+      <Route path="/private/CommunicationHub" element={
+              <PrivateRoute>
+                <CommunicationHub />
+              </PrivateRoute>
+            } />
 
       {/* Long URL Redirects - Redirect to short URLs */}
       <Route path="/government/*" element={<Navigate to="/gov" replace />} />
