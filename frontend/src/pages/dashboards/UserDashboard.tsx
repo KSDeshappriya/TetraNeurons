@@ -177,6 +177,12 @@ const UserDashboard: React.FC = () => {
       setAlertOpen(true);
       return;
     }
+
+     if (!imageFile) {
+    setAlertMessage('Image evidence is required. Please upload an image.');
+    setAlertOpen(true);
+    return;
+  }
     // Prepare form data
     const formData = new FormData();
     formData.append('emergencyType', emergencyType);
@@ -464,8 +470,8 @@ const UserDashboard: React.FC = () => {
                   {/* Video/Image Evidence */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Image Evidence (Optional)
-                    </label>
+  Image Evidence <span className="text-red-600">*</span>
+</label>
                     <input
                       type="file"
                       accept="image/*"
