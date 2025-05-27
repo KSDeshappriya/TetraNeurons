@@ -13,6 +13,7 @@ import { fetchDisasterData } from '../../services/check_users';
 import NavigationBar from '../../components/layout/Navigationbar';
 import { getResourcesByDisaster } from '../../services/check_resource';
 import { CitizenSurvivalGuideAccordion } from '../../components/ui/CitizenSurvivalGuideAccordion';
+import EmergencyReportForm from '../../components/ui/ReportForm';
 
 interface ResourceItem {
   id: string;
@@ -173,17 +174,6 @@ const UserResources: React.FC = () => {
     );
   };
 
-  const renderMarkdown = (text: string) => {
-    // Simple markdown parser for basic formatting
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/### (.*?)$/gm, '<h3 class="text-lg font-semibold mb-2 mt-4">$1</h3>')
-      .replace(/## (.*?)$/gm, '<h2 class="text-xl font-semibold mb-3 mt-6">$1</h2>')
-      .replace(/# (.*?)$/gm, '<h1 class="text-2xl font-bold mb-4 mt-8">$1</h1>')
-      .replace(/\n\n/g, '</p><p class="mb-4">')
-      .replace(/\n/g, '<br />');
-  };
 
   if (loading) {
     return (
@@ -263,8 +253,14 @@ const UserResources: React.FC = () => {
                 scrollWheelZoom={true}
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; OpenStreetMap contributors'
+                />
+
+                <TileLayer
+                  url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=`}
+                  attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                  opacity={0.6}
                 />
                 {selectedCategory === 'contacts'
                   ? emergencyContacts.map(contact => (
@@ -379,6 +375,10 @@ const UserResources: React.FC = () => {
                 </div>
               )}
               <CitizenSurvivalGuideAccordion disasterData={disasterData} />
+               <EmergencyReportForm 
+                disasterId={disasterId}
+                
+                />
             </div>
           ) : (
             <div className="space-y-4">

@@ -304,7 +304,10 @@ def government_analysis_agent(state: EmergencyState) -> EmergencyState:
     
     You are analyzing this emergency for GOVERNMENT RESPONSE COORDINATION. Create a comprehensive government report with:
     1. THREAT ASSESSMENT & SEVERITY SCALE (1-10)
-         - Assess the threat is genuine or false alarm using only Weather data and CNN,Image analysis
+         - Assess the threat is genuine or false alarm using only Weather data,Image analysis and CNN
+         (cnn can be unreliable sometime because it only train to classifed some of disasters 
+         so there some problem of mismatching disaster so mainly focus on user,weather and image analysis 
+         data if that kind situation come.)
        
     2. FUTURE PROJECTIONS:
        - How will this situation evolve in next 24-72 hours?
