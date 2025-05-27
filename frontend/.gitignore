@@ -26,3 +26,4 @@ dist-ssr
 # developer files
 pnpm-lock.yaml
 others/
+key/
