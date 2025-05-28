@@ -69,6 +69,7 @@ const FRResources: React.FC = () => {
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
 
 
   // Fetch disaster data and nearby responders
@@ -249,6 +250,11 @@ const FRResources: React.FC = () => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                <TileLayer
+                                  url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
+                                  attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                                  opacity={0.6}
+                                />
                 {selectedCategory === 'contacts'
                   ? emergencyContacts.map(contact => (
                     <Marker key={contact.uid} position={[contact.latitude, contact.longitude]}>

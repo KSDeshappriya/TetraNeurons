@@ -33,6 +33,7 @@ interface DisasterData {
 }
 
 const FRDashboard: React.FC = () => {
+  const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
   const token = authService.getTokenPayload();
   const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'archive'>('active');
   const [loading, setLoading] = useState(true);
@@ -220,6 +221,11 @@ const FRDashboard: React.FC = () => {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
+                    <TileLayer
+                                      url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
+                                      attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                                      opacity={0.6}
+                                    />
                     {getCurrentData().map((disaster) => (
                       <Marker
                         key={disaster.uniqueId}

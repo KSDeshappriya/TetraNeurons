@@ -52,7 +52,7 @@ const EmergencyRequestReview: React.FC = () => {
   const navigate = useNavigate();
    const searchParams = new URLSearchParams(location.search);
   const disasterId = searchParams.get('id');
-
+const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
   useEffect(() => {
     fetchDisasterDataWithoutContact(disasterId, setDisasterData,  setError, setLoading);
   }, [disasterId]);
@@ -293,6 +293,11 @@ const EmergencyRequestReview: React.FC = () => {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
+                    <TileLayer
+                                      url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
+                                      attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                                      opacity={0.6}
+                                    />
                     <Marker
                       position={[disasterData.latitude, disasterData.longitude]}
                       icon={L.divIcon({

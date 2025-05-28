@@ -11,7 +11,7 @@ const RejectButton: React.FC<RejectButtonProps> = ({ disasterId }) => {
   const handleConfirm = async () => {
     try {
       await rejectEmergencyRequest(disasterId);
-      alert('Emergency request rejected.');
+      window.history.back();
     } catch (error) {
       console.error(error);
       alert('Failed to reject request.');

@@ -13,7 +13,7 @@ const AIMatrixPage = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const disasterId = searchParams.get('id');
-  const [matrixData, setMatrixData] = useState<any>(null);
+  const [matrixData, setMatrixData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,19 +59,16 @@ const AIMatrixPage = () => {
   }
 
   const {
-    created_at,
-    created_at_iso,
-    processing_start_time,
-    processing_end_time,
-    total_processing_time,
-    agents_summary,
-    agents_status,
+    disaster_id,
+    emergency_context,
     final_status,
     logs,
-    emergency_context,
+    processing_end_time,
+    processing_start_time,
+    total_processing_time,
   } = matrixData;
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'completed':
       case 'success':
@@ -79,6 +76,8 @@ const AIMatrixPage = () => {
       case 'failed':
       case 'error':
         return 'bg-red-100 text-red-800 border-red-200';
+      case 'rejected':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'processing':
       case 'running':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
@@ -87,7 +86,7 @@ const AIMatrixPage = () => {
     }
   };
 
-  const getUrgencyColor = (urgency: string) => {
+  const getUrgencyColor = (urgency) => {
     switch (urgency?.toLowerCase()) {
       case 'high':
       case 'critical':
@@ -101,145 +100,219 @@ const AIMatrixPage = () => {
     }
   };
 
+  // Format timestamp - your data is already in Unix timestamp format
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'Unknown';
+    return new Date(timestamp * 1000).toLocaleString();
+  };
+
   return (
     <>
-    <NavigationBar />
-    <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">AI Matrix Report</h1>
-              <p className="text-gray-600 mt-1">Disaster ID: {disasterId}</p>
-            </div>
-            <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(final_status)}`}>
-              {final_status || 'Unknown'}
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Basic Information */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <span className="text-blue-500 mr-2">📊</span>
-              Basic Information
-            </h2>
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:justify-between">
-                <span className="text-gray-600 font-medium">Created At:</span>
-                <span className="text-gray-900">{new Date(created_at * 1000).toLocaleString()}</span>
+      <NavigationBar />
+      <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">AI Matrix Report</h1>
+                <p className="text-gray-600 mt-1">Disaster ID: {disaster_id || disasterId}</p>
               </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between">
-                <span className="text-gray-600 font-medium">ISO Format:</span>
-                <span className="text-gray-900 text-sm break-all">{created_at_iso}</span>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(final_status)}`}>
+                {final_status || 'Unknown'}
               </div>
             </div>
           </div>
 
-          {/* Processing Information */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <span className="text-green-500 mr-2">⚡</span>
-              Processing Details
-            </h2>
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:justify-between">
-                <span className="text-gray-600 font-medium">Start Time:</span>
-                <span className="text-gray-900 text-sm">{processing_start_time}</span>
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Processing Information */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <span className="text-green-500 mr-2">⚡</span>
+                Processing Details
+              </h2>
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:justify-between">
+                  <span className="text-gray-600 font-medium">Start Time:</span>
+                  <span className="text-gray-900 text-sm">{formatTimestamp(processing_start_time)}</span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:justify-between">
+                  <span className="text-gray-600 font-medium">End Time:</span>
+                  <span className="text-gray-900 text-sm">{formatTimestamp(processing_end_time)}</span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:justify-between">
+                  <span className="text-gray-600 font-medium">Total Duration:</span>
+                  <span className="text-gray-900 font-semibold">
+                    {total_processing_time ? `${total_processing_time.toFixed(2)}s` : 'Unknown'}
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:justify-between">
+                  <span className="text-gray-600 font-medium">Final Status:</span>
+                  <span className={`px-2 py-1 rounded text-sm ${getStatusColor(final_status)}`}>
+                    {final_status || 'Unknown'}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between">
-                <span className="text-gray-600 font-medium">End Time:</span>
-                <span className="text-gray-900 text-sm">{processing_end_time}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between">
-                <span className="text-gray-600 font-medium">Total Duration:</span>
-                <span className="text-gray-900 font-semibold">{total_processing_time?.toFixed(2)}s</span>
-              </div>
+            </div>
+
+            {/* Emergency Context */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <span className="text-red-500 mr-2">🚨</span>
+                Emergency Context
+              </h2>
+              {emergency_context ? (
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
+                    <span className="text-gray-600 font-medium">Emergency Type:</span>
+                    <span className="inline-block px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm capitalize">
+                      {emergency_context.emergency_type || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
+                    <span className="text-gray-600 font-medium">Urgency Level:</span>
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm capitalize ${getUrgencyColor(emergency_context.urgency_level)}`}>
+                      {emergency_context.urgency_level || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
+                    <span className="text-gray-600 font-medium">People Affected:</span>
+                    <span className="text-gray-900 font-semibold">{emergency_context.people_count || 'Unknown'}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
+                    <span className="text-gray-600 font-medium">Location:</span>
+                    <span className="text-gray-900 text-sm">
+                      {emergency_context.latitude && emergency_context.longitude
+                        ? `${emergency_context.latitude}, ${emergency_context.longitude}`
+                        : 'Unknown'}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">No emergency context data available</p>
+              )}
             </div>
           </div>
+
+<div className="bg-gradient-to-br from-white via-blue-50 to-white rounded-2xl shadow-lg border border-gray-200 p-8 transition-all duration-300 hover:shadow-xl">
+  <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+    <span className="text-blue-500 mr-3 text-2xl">🧠</span>
+    Component Status Summary
+  </h2>
+
+  {matrixData?.components_status ? (
+    <div className="space-y-8">
+
+      {/* AI Agents */}
+      <div>
+        <h3 className="text-gray-800 font-semibold text-base mb-3 flex items-center gap-2">
+          🤖 AI Agents
+        </h3>
+        <ul className="space-y-2 text-sm">
+          {Object.entries(matrixData.components_status)
+            .filter(([key]) => key.includes('_ai'))
+            .map(([name, status]) => (
+              <li key={name} className="flex justify-between items-center bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100">
+                <span className="capitalize text-gray-700 font-medium">
+                  {name.replace(/_/g, ' ')}
+                </span>
+                <span
+                  className={`capitalize px-3 py-1 rounded-full text-xs font-semibold tracking-wide shadow-sm transition-all duration-200 ${
+                    status === 'completed'
+                      ? 'bg-green-100 text-green-700'
+                      : status === 'pending'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {status}
+                </span>
+              </li>
+            ))}
+        </ul>
+      </div>
+
+      {/* Tools */}
+      <div>
+        <h3 className="text-gray-800 font-semibold text-base mb-3 flex items-center gap-2">
+          🛠️ Tools
+        </h3>
+        <ul className="space-y-2 text-sm">
+          {Object.entries(matrixData.components_status)
+            .filter(([key]) => key.includes('_tool'))
+            .map(([name, status]) => (
+              <li key={name} className="flex justify-between items-center bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100">
+                <span className="capitalize text-gray-700 font-medium">
+                  {name.replace(/_/g, ' ')}
+                </span>
+                <span
+                  className={`capitalize px-3 py-1 rounded-full text-xs font-semibold tracking-wide shadow-sm transition-all duration-200 ${
+                    status === 'completed'
+                      ? 'bg-green-100 text-green-700'
+                      : status === 'pending'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {status}
+                </span>
+              </li>
+            ))}
+        </ul>
+      </div>
+
+      {/* Summary */}
+      <div className="pt-6 border-t mt-6 text-sm text-gray-700 space-y-2">
+        <div className="flex justify-between">
+          <span>Total Components:</span>
+          <span className="font-bold">
+            {matrixData.components_summary.total_components}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Completed:</span>
+          <span className="font-bold text-green-600">
+            {matrixData.components_summary.completed_components}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Failed:</span>
+          <span className="font-bold text-red-600">
+            {matrixData.components_summary.failed_components}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Success Rate:</span>
+          <span className="font-bold text-blue-600">
+            {matrixData.components_summary.success_rate}%
+          </span>
         </div>
 
-        {/* Agents Summary */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <span className="text-purple-500 mr-2">🤖</span>
-            Agents Summary
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{agents_summary?.total_agents || 0}</div>
-              <div className="text-sm text-gray-600">Total Agents</div>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{agents_summary?.completed_agents || 0}</div>
-              <div className="text-sm text-gray-600">Completed</div>
-            </div>
-            <div className="text-center p-4 bg-red-50 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">{agents_summary?.failed_agents || 0}</div>
-              <div className="text-sm text-gray-600">Failed</div>
-            </div>
-            <div className="text-center p-4 bg-yellow-50 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600">{agents_summary?.success_rate?.toFixed(1) || 0}%</div>
-              <div className="text-sm text-gray-600">Success Rate</div>
-            </div>
+        {/* Visual Success Rate Bar */}
+        <div className="mt-4">
+          <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 rounded-full transition-all duration-700"
+              style={{ width: `${matrixData.components_summary.success_rate}%` }}
+            />
           </div>
+          <p className="text-xs text-center text-gray-500 mt-1">Visual representation of success rate</p>
         </div>
-
-        {/* Emergency Context */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <span className="text-red-500 mr-2">🚨</span>
-            Emergency Context
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <span className="text-gray-600 font-medium block">Emergency Type:</span>
-              <span className="inline-block px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm">
-                {emergency_context?.emergency_type || 'Unknown'}
-              </span>
-            </div>
-            <div className="space-y-2">
-              <span className="text-gray-600 font-medium block">Urgency Level:</span>
-              <span className={`inline-block px-3 py-1 rounded-full text-sm ${getUrgencyColor(emergency_context?.urgency_level)}`}>
-                {emergency_context?.urgency_level || 'Unknown'}
-              </span>
-            </div>
-            <div className="space-y-2">
-              <span className="text-gray-600 font-medium block">People Affected:</span>
-              <span className="text-gray-900 font-semibold">{emergency_context?.people_count || 'Unknown'}</span>
-            </div>
-            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-              <span className="text-gray-600 font-medium block">Location:</span>
-              <span className="text-gray-900 text-sm">
-                {emergency_context?.latitude && emergency_context?.longitude 
-                  ? `${emergency_context.latitude}, ${emergency_context.longitude}`
-                  : 'Unknown'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Agent Status */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <span className="text-indigo-500 mr-2">📋</span>
-            Agent Status Details
-          </h2>
-          <div className="bg-gray-50 rounded-lg p-4 overflow-x-auto">
-            <pre className="text-sm text-gray-800 whitespace-pre-wrap">
-              {JSON.stringify(agents_status, null, 2)}
-            </pre>
-          </div>
-        </div>
-
-        <LogsSection logs={logs} />
-
       </div>
     </div>
-    <Footer />
+  ) : (
+    <p className="text-gray-500 italic">No component status data available</p>
+  )}
+</div>
+
+          {/* Logs Section - Only show if logs exist */}
+          {logs && <LogsSection logs={logs} />}
+
+
+        </div>
+      </div>
+      <Footer />
     </>
   );
 };

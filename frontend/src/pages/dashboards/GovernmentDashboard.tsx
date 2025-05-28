@@ -39,7 +39,7 @@ const GovernmentDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const showMap = true;
-
+  const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
   // State for disaster data
   const [activeDisasters, setActiveDisasters] = useState<DisasterData[]>([]);
   const [pendingDisasters, setPendingDisasters] = useState<DisasterData[]>([]);
@@ -299,6 +299,11 @@ const GovernmentDashboard: React.FC = () => {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
+                    <TileLayer
+                                      url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
+                                      attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                                      opacity={0.6}
+                                    />
                     {getCurrentData().map((disaster) => (
                       <Marker
                         key={disaster.uniqueId}
@@ -444,8 +449,8 @@ const GovernmentDashboard: React.FC = () => {
                         </div>
                         <div className="flex flex-row gap-2 sm:gap-3 items-center mt-2 sm:mt-0">
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Resolved</span>
-                          <Button variant="outline" size="sm" className="text-xs">
-                            <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />Download Report
+                         <Button variant="primary" size="sm" className="text-xs" onClick={() => window.location.href = `/gov/request?id=${disaster.data.disaster_id}`}>
+                            Review Report
                           </Button>
                         </div>
                       </div>

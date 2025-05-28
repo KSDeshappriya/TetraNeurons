@@ -38,7 +38,7 @@ const VolDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const showMap = true;
-  
+  const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
  const [activeDisasters, setActiveDisasters] = useState<DisasterData[]>([]);
 
 
@@ -220,6 +220,11 @@ const VolDashboard: React.FC = () => {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
+                    <TileLayer
+                                      url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
+                                      attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                                      opacity={0.6}
+                                    />
                     {getCurrentData().map((disaster) => (
                       <Marker
                         key={disaster.uniqueId}

@@ -68,7 +68,7 @@ const UserResources: React.FC = () => {
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
 
   // Disaster data
   useEffect(() => {
@@ -258,7 +258,7 @@ const UserResources: React.FC = () => {
                 />
 
                 <TileLayer
-                  url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=`}
+                  url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
                   attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
                   opacity={0.6}
                 />
@@ -375,10 +375,10 @@ const UserResources: React.FC = () => {
                 </div>
               )}
               <CitizenSurvivalGuideAccordion disasterData={disasterData} />
-               <EmergencyReportForm 
+              <EmergencyReportForm
                 disasterId={disasterId}
-                
-                />
+
+              />
             </div>
           ) : (
             <div className="space-y-4">

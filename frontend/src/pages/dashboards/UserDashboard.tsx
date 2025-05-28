@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Clock3,
   AlertCircle,
+  Loader2, // Add this import for loading spinner
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { sendEmergencyReport } from '../../services/emergency';
@@ -86,6 +87,9 @@ const UserDashboard: React.FC = () => {
   const [alertMessage, setAlertMessage] = useState('');
   const [nearbyDisasters, setNearbyDisasters] = useState<DisasterData[]>([]);
   const [userGeohash, setUserGeohash] = useState<string>('');
+  
+  // Add loading state for submit button
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchDisasterData = async () => {
@@ -162,6 +166,10 @@ const UserDashboard: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (isSubmitting) return;
+    
     if (!emergencyActive) {
       setAlertMessage('Please activate emergency switch to report');
       setAlertOpen(true);
@@ -178,34 +186,49 @@ const UserDashboard: React.FC = () => {
       return;
     }
 
-     if (!imageFile) {
-    setAlertMessage('Image evidence is required. Please upload an image.');
-    setAlertOpen(true);
-    return;
-  }
-    // Prepare form data
-    const formData = new FormData();
-    formData.append('emergencyType', emergencyType);
-    formData.append('urgencyLevel', urgencyLevel);
-    formData.append('situation', situation);
-    formData.append('peopleCount', peopleCount);
-    formData.append('latitude', String(userLocation.latitude));
-    formData.append('longitude', String(userLocation.longitude));
-    if (imageFile) {
-      formData.append('image', imageFile, imageFile.name);
+    if (!imageFile) {
+      setAlertMessage('Image evidence is required. Please upload an image.');
+      setAlertOpen(true);
+      return;
     }
-    // Use the service for API call
-    await sendEmergencyReport(formData);
-    setAlertMessage('Emergency report submitted successfully');
-    setAlertOpen(true);
-    // Reset form
-    setEmergencyActive(false);
-    setEmergencyType('');
-    setUrgencyLevel('');
-    setSituation('');
-    setPeopleCount('');
-    setImageFile(null);
-    setImagePreview(null);
+
+    // Set loading state to true
+    setIsSubmitting(true);
+
+    try {
+      // Prepare form data
+      const formData = new FormData();
+      formData.append('emergencyType', emergencyType);
+      formData.append('urgencyLevel', urgencyLevel);
+      formData.append('situation', situation);
+      formData.append('peopleCount', peopleCount);
+      formData.append('latitude', String(userLocation.latitude));
+      formData.append('longitude', String(userLocation.longitude));
+      if (imageFile) {
+        formData.append('image', imageFile, imageFile.name);
+      }
+      
+      // Use the service for API call
+      await sendEmergencyReport(formData);
+      setAlertMessage('Emergency report submitted successfully');
+      setAlertOpen(true);
+      
+      // Reset form
+      setEmergencyActive(false);
+      setEmergencyType('');
+      setUrgencyLevel('');
+      setSituation('');
+      setPeopleCount('');
+      setImageFile(null);
+      setImagePreview(null);
+    } catch (error) {
+      console.error('Error submitting emergency report:', error);
+      setAlertMessage('Failed to submit emergency report. Please try again.');
+      setAlertOpen(true);
+    } finally {
+      // Reset loading state
+      setIsSubmitting(false);
+    }
   };
 
   const handleSituationChange = (e: ChangeEvent<HTMLTextAreaElement>): void => {
@@ -371,11 +394,12 @@ const UserDashboard: React.FC = () => {
                             key={type.id}
                             type="button"
                             onClick={() => handleEmergencyTypeSelect(type.id)}
+                            disabled={isSubmitting}
                             className={`p-3 rounded-lg border-2 text-center transition-all duration-200 ${
                               emergencyType === type.id
                                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                                 : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                            }`}
+                            } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             <IconComponent className="h-6 w-6 mx-auto mb-2" />
                             <span className="text-sm font-medium">{type.name}</span>
@@ -396,11 +420,12 @@ const UserDashboard: React.FC = () => {
                           key={level.id}
                           type="button"
                           onClick={() => handleUrgencyLevelSelect(level.id)}
+                          disabled={isSubmitting}
                           className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
                             urgencyLevel === level.id
                               ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-200 bg-white hover:border-gray-300'
-                          }`}
+                          } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           <div className="font-medium text-gray-900">{level.name}</div>
                           <div className="text-sm text-gray-600">{level.description}</div>
@@ -417,7 +442,8 @@ const UserDashboard: React.FC = () => {
                     <select
                       value={peopleCount}
                       onChange={handlePeopleCountChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={isSubmitting}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <option value="">Select number of people</option>
                       <option value="1">1 person</option>
@@ -439,10 +465,12 @@ const UserDashboard: React.FC = () => {
                       rows={4}
                       value={situation}
                       onChange={handleSituationChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      disabled={isSubmitting}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                       placeholder="Please provide details about the emergency situation..."
                     />
                   </div>
+                  
                   {/* User Location Button (Required, Map Marker Icon, Red Star) */}
                   <div>
                     <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-1">
@@ -453,7 +481,8 @@ const UserDashboard: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleGetLocation}
-                        className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 flex items-center gap-2 border border-white"
+                        disabled={isSubmitting}
+                        className={`px-4 py-2 bg-black text-white rounded hover:bg-gray-800 flex items-center gap-2 border border-white ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5 text-white"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z" /></svg>
                         Get My Location
@@ -470,13 +499,14 @@ const UserDashboard: React.FC = () => {
                   {/* Video/Image Evidence */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-  Image Evidence <span className="text-red-600">*</span>
-</label>
+                      Image Evidence <span className="text-red-600">*</span>
+                    </label>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
-                      className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      disabled={isSubmitting}
+                      className={`block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                     />
                     {imagePreview && (
                       <div className="mt-2">
@@ -486,13 +516,25 @@ const UserDashboard: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Submit Button */}
+                  {/* Submit Button with Loading State */}
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                    disabled={isSubmitting}
+                    className={`w-full font-medium py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 flex items-center justify-center gap-2 ${
+                      isSubmitting 
+                        ? 'bg-gray-400 cursor-not-allowed text-white' 
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}
                   >
-                    Submit Emergency Report
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Submitting Report...
+                      </>
+                    ) : (
+                      'Submit Emergency Report'
+                    )}
                   </button>
                 </>
               )}
@@ -508,8 +550,9 @@ const UserDashboard: React.FC = () => {
             </h2>
 
             <div className="space-y-4">
-              {nearbyDisasters.length > 0 ? (
-                nearbyDisasters.map(disaster => {
+              {nearbyDisasters.length > 0 ? ( 
+  nearbyDisasters.map(disaster => {
+    if (disaster?.data?.status === 'archived') return null;
                   const EmergencyIcon = getEmergencyTypeIcon(disaster.data.emergency_type);
                   const distance = calculateDistance(userGeohash, disaster.data.geohash);
                   

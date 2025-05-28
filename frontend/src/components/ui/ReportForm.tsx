@@ -6,7 +6,7 @@ import { authService } from "../../services/auth";
 
 interface Props {
     disasterId: string;
-    
+
 }
 
 
@@ -19,15 +19,17 @@ export default function EmergencyReportForm({ disasterId }: Props) {
     const [taskId, setTaskId] = useState("");
     const [loading, setLoading] = useState(true);
     const userId = authService.getTokenPayload()?.uid;
+    const [submitting, setSubmitting] = useState(false);
+
     // Load existing request on component mount
     useEffect(() => {
         const loadExistingRequest = async () => {
-            
+
             try {
                 const db = getDatabase(app);
                 const userRequestRef = ref(db, `userrequest/${userId}`);
                 const snapshot = await get(userRequestRef);
-                
+
                 if (snapshot.exists()) {
                     const data = snapshot.val();
                     setHelp(data.help || "");
@@ -69,6 +71,8 @@ export default function EmergencyReportForm({ disasterId }: Props) {
             return;
         }
 
+        setSubmitting(true); // disable the button
+
         const formData = new FormData();
         formData.append("disasterId", disasterId);
         formData.append("help", help.trim());
@@ -86,24 +90,27 @@ export default function EmergencyReportForm({ disasterId }: Props) {
             }
         } catch {
             alert("Failed to send report.");
+        } finally {
+            setSubmitting(false); // re-enable only if needed
         }
     };
+
 
 
     const handleDelete = async () => {
         try {
             const db = getDatabase(app);
-            
+
             // Remove user request
             const userRequestRef = ref(db, `userrequest/${userId}`);
             await remove(userRequestRef);
-            
+
             // Remove associated task if exists
             if (taskId) {
                 const taskRef = ref(db, `tasks/${disasterId}/${taskId}`);
                 await remove(taskRef);
             }
-            
+
             // Clear form
             setHelp("");
             setUrgencyType("");
@@ -120,7 +127,7 @@ export default function EmergencyReportForm({ disasterId }: Props) {
     return (
         <div className="mt-4 max-w-xl mx-auto p-4 border rounded shadow">
             <h2 className="text-xl font-semibold mb-4">Emergency Request</h2>
-            
+
             {loading ? (
                 <div className="flex justify-center items-center py-8">
                     <div className="text-gray-500">Loading...</div>
@@ -163,10 +170,12 @@ export default function EmergencyReportForm({ disasterId }: Props) {
 
                     <button
                         type="submit"
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                        disabled={submitting}
                     >
-                        Send Emergency Request
+                        {submitting ? "Submitting..." : "Send Emergency Request"}
                     </button>
+
                 </form>
             ) : (
                 <div className="p-4 bg-gray-100 rounded space-y-2">
@@ -174,12 +183,12 @@ export default function EmergencyReportForm({ disasterId }: Props) {
                         <p className="text-green-800 font-medium">✅ Request Submitted Successfully</p>
                         <p className="text-green-600 text-sm">Emergency responders have been notified and a task has been created.</p>
                     </div>
-                    
+
                     <p><strong>Help Needed:</strong> {help}</p>
                     <p><strong>Urgency:</strong> {urgencyType}</p>
                     <p><strong>Location:</strong> {parseFloat(latitude).toFixed(4)}, {parseFloat(longitude).toFixed(4)}</p>
 
-                    <div className="mt-4 flex gap-2">                    
+                    <div className="mt-4 flex gap-2">
                         <button
                             onClick={handleDelete}
                             className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"

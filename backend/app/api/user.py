@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form,HTTPException
 from app.services.role_service import require_user
 from app.models.user import UserProfile
 from typing import Optional
-from app.services import emergency as emergency_service
-from app.services.Request_Task_Generator import process_emergency_request
+from app.services import emergency_multiagent_workflow as emergency_service
+from app.services.Request_Task_Generation import process_emergency_request
 
 router = APIRouter(prefix="/user", tags=["Users"])
 

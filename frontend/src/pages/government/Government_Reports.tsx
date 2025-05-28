@@ -109,6 +109,7 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
 
 const GovResources: React.FC = () => {
   const location = useLocation();
+  const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
   const searchParams = new URLSearchParams(location.search);
   const disasterId = searchParams.get('id');
   const [resources, setResources] = useState<ResourceItem[]>([]);
@@ -339,6 +340,11 @@ const GovResources: React.FC = () => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                <TileLayer
+                                  url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
+                                  attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                                  opacity={0.6}
+                                />
                 {selectedCategory === 'contacts'
                   ? emergencyContacts.map(contact => (
                     <Marker key={contact.uid} position={[contact.latitude, contact.longitude]}>
@@ -472,7 +478,7 @@ const GovResources: React.FC = () => {
 
               <TaskList disasterId={disasterId} role='gov' />
               <div className="flex justify-center items-center h-full">
-              <RejectButton disasterId={disasterId} />
+                <RejectButton disasterId={disasterId} />
               </div>
             </div>
           ) : (
@@ -570,7 +576,9 @@ const GovResources: React.FC = () => {
       <DeleteConfirmationModal
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, resourceId: '', resourceName: '' })}
-        onConfirm={() => handleDeleteResource(deleteModal.resourceId)}
+        onConfirm={() => {
+          handleDeleteResource(deleteModal.resourceId)
+        }}
         resourceName={deleteModal.resourceName}
       />
     </>
