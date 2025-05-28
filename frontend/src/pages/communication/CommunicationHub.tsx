@@ -1,15 +1,18 @@
-import React, { useEffect, useState } from "react";
-import { getDatabase, ref, push, onChildAdded, query, orderByChild, equalTo } from "firebase/database";
-import { db, firestore } from "../../services/firebase"; // Import both db and firestore
+import React, { useEffect, useState, useRef } from "react";
+import { getDatabase, ref, push, onChildAdded } from "firebase/database";
+import { db, firestore } from "../../services/firebase";
 import {
   MessageSquare,
   Send,
   Search,
-  AlertTriangle
+  AlertTriangle,
+  Menu,
+  X,
+  User,
 } from "lucide-react";
-import { authService } from "../../services/auth"; // Import auth service
+import { authService } from "../../services/auth";
 import { Navigate, useLocation, useNavigate } from "react-router";
-import { collection, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 
 // Disaster interface based on the image
 interface Disaster {
@@ -52,41 +55,39 @@ const CommunicationHub: React.FC = () => {
   const [disaster, setDisaster] = useState<Disaster | null>(null);
   const [disasterLoading, setDisasterLoading] = useState(false);
   const [disasterError, setDisasterError] = useState<string | null>(null);
-  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // Extract reportId from URL
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom of messages whenever messages update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, filteredMessages]);
+
+  // Extract reportId from URL and fetch disaster details
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
-    const reportIdParam = queryParams.get('reportId');
+    const reportIdParam = queryParams.get("reportId");
     setReportId(reportIdParam);
-    
+
     if (reportIdParam) {
       setReportTitle(`Report Discussion: ${reportIdParam}`);
-      
-      // Fetch disaster details if we have a reportId
+
       const fetchDisasterDetails = async () => {
-        if (!reportIdParam) return;
-        
         setDisasterLoading(true);
         setDisasterError(null);
         try {
-          // Use the correct path format without quotes around the document ID
           const disasterRef = doc(firestore, "disasters", reportIdParam);
-          console.log("Disaster reference:", disasterRef.id);
-          console.log("Fetching disaster details for reportId:", reportIdParam);
-          
           const disasterSnap = await getDoc(disasterRef);
-          console.log("Disaster snapshot:", disasterSnap.exists(), disasterSnap.data());
-          
+
           if (disasterSnap.exists()) {
-        const disasterData = disasterSnap.data() as Disaster;
-        setDisaster(disasterData);
-        setReportTitle(`${disasterData.emergency_type.toUpperCase()} Report`);
+            const disasterData = disasterSnap.data() as Disaster;
+            setDisaster(disasterData);
+            setReportTitle(`${disasterData.emergency_type.toUpperCase()} Report`);
           } else {
-        console.log("No disaster document found for ID:", reportIdParam);
-        setDisasterError("Disaster information not found");
+            setDisasterError("Disaster information not found");
           }
         } catch (error) {
           console.error("Error fetching disaster details:", error);
@@ -95,16 +96,16 @@ const CommunicationHub: React.FC = () => {
           setDisasterLoading(false);
         }
       };
-      
+
       fetchDisasterDetails();
     } else {
       setReportTitle("General Discussion");
       setDisaster(null);
     }
   }, [location.search]);
-  
+
+  // Fetch authenticated user's name
   useEffect(() => {
-    // Get authenticated user's name
     const fetchUserProfile = async () => {
       try {
         if (authService.isAuthenticated()) {
@@ -120,20 +121,14 @@ const CommunicationHub: React.FC = () => {
 
     fetchUserProfile();
   }, []);
-  
+
+  // Listen for new messages
   useEffect(() => {
     setMessages([]); // Clear messages when reportId changes
-    
-    let chatRef;
-    
-    if (reportId) {
-      // If we have a reportId, get messages from the report-specific collection
-      chatRef = ref(db, `messages/${reportId}`);
-    } else {
-      // Otherwise, get general messages from the general messages collection
-      chatRef = ref(db, "messages/general");
-    }
-    
+
+    const chatPath = reportId ? `messages/${reportId}` : "messages/general";
+    const chatRef = ref(db, chatPath);
+
     const unsubscribe = onChildAdded(chatRef, (snapshot) => {
       const msg = snapshot.val() as Message;
       const msgWithTimestamp = {
@@ -142,20 +137,21 @@ const CommunicationHub: React.FC = () => {
       };
       setMessages((prev) => [...prev, msgWithTimestamp]);
     });
-    
+
     return () => {
-      // Clean up listener when component unmounts or reportId changes
       unsubscribe();
     };
   }, [reportId]);
 
+  // Filter messages based on search query
   useEffect(() => {
     if (searchQuery.trim() === "") {
       setFilteredMessages([]);
     } else {
-      const filtered = messages.filter((msg) => 
-        msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        msg.user.toLowerCase().includes(searchQuery.toLowerCase())
+      const filtered = messages.filter(
+        (msg) =>
+          msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          msg.user.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredMessages(filtered);
     }
@@ -168,42 +164,40 @@ const CommunicationHub: React.FC = () => {
 
   const sendMessage = () => {
     if (input.trim() && username) {
-      // Create the appropriate path based on whether we have a reportId
       const chatPath = reportId ? `messages/${reportId}` : "messages/general";
       const chatRef = ref(db, chatPath);
-      
-      push(chatRef, { 
-        user: username, 
+
+      push(chatRef, {
+        user: username,
         content: input,
         timestamp: new Date().toISOString(),
         isRead: false,
-        avatar: `https://api.dicebear.com/6.x/initials/svg?seed=${username}`
-        // No need to store reportId in the message since it's part of the path
+        avatar: `https://api.dicebear.com/6.x/initials/svg?seed=${username}`,
       });
       setInput("");
     }
   };
-  
+
   const formatTime = (timestamp: string) => {
     try {
       const date = new Date(timestamp);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     } catch (e) {
       return "";
     }
   };
-  
+
   const formatDate = (timestamp: string) => {
     try {
       const date = new Date(timestamp);
       const today = new Date();
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
-      
+
       if (date.toDateString() === today.toDateString()) {
-        return 'Today';
+        return "Today";
       } else if (date.toDateString() === yesterday.toDateString()) {
-        return 'Yesterday';
+        return "Yesterday";
       } else {
         return date.toLocaleDateString();
       }
@@ -212,13 +206,12 @@ const CommunicationHub: React.FC = () => {
     }
   };
 
-  // Group messages by date - use filtered messages when search is active
   const messagesByDate: Record<string, Message[]> = {};
   const messagesToDisplay = searchQuery.trim() !== "" ? filteredMessages : messages;
 
   messagesToDisplay.forEach((message) => {
     if (!message.timestamp) return;
-    
+
     const date = formatDate(message.timestamp);
     if (!messagesByDate[date]) {
       messagesByDate[date] = [];
@@ -228,9 +221,9 @@ const CommunicationHub: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-64px)] bg-gray-50 flex items-center justify-center">
+      <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading chat...</p>
         </div>
       </div>
@@ -238,298 +231,361 @@ const CommunicationHub: React.FC = () => {
   }
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-gray-50 p-4">
+    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-blue-50 to-indigo-100 p-4 font-sans antialiased">
       <div className="max-w-7xl mx-auto">
-        <div className="flex mb-6">
-          <div className="mr-4">
-            <h1 className="text-2xl font-bold text-gray-900">Communication Hub</h1>
-            <p className="text-gray-600">
-              {reportId 
-                ? `Discussing report: ${reportId}` 
-                : "Connect and chat with team members"}
-            </p>
+        {/* Header (visible on mobile) */}
+        <div className="flex justify-between items-center mb-6 lg:hidden">
+          <div className="flex items-center">
+            <button
+              className="p-2 mr-3 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md bg-white/70 backdrop-blur-sm shadow-md"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              aria-label="Toggle sidebar"
+            >
+              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-800">Communication Hub</h1>
+              <p className="text-sm text-gray-600">
+                {reportId
+                  ? `Discussing report: ${reportId}`
+                  : "Connect and chat with team members"}
+              </p>
+            </div>
           </div>
         </div>
-        
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <div className="flex h-[calc(100vh-200px)]">
-            {/* Left sidebar */}
-            <div className="w-80 border-r border-gray-200 flex flex-col">
-              {/* Header */}
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="font-medium text-gray-900 flex items-center">
-                  <MessageSquare className="h-5 w-5 mr-2" />
-                  Chat Rooms
-                </h2>
+
+        {/* Main Content Area */}
+        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row h-[calc(100vh-160px)] border border-white/50">
+          {/* Left sidebar */}
+          <div
+            className={`fixed inset-y-0 left-0 w-72 bg-white/90 backdrop-blur-lg transform ${
+              isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+            } lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out flex-shrink-0 flex flex-col z-20 shadow-xl lg:shadow-none lg:border-r lg:border-blue-100`}
+          >
+            {/* Header */}
+            <div className="p-4 border-b border-blue-100 flex items-center justify-between">
+              <h2 className="font-medium text-gray-800 flex items-center text-lg">
+                <MessageSquare className="h-5 w-5 mr-2 text-blue-500" />
+                Chat Rooms
+              </h2>
+              <button
+                className="lg:hidden p-1 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md"
+                onClick={() => setIsSidebarOpen(false)}
+                aria-label="Close sidebar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="p-3 border-b border-blue-100">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  placeholder="Search messages..."
+                  className="w-full pl-9 pr-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-sm bg-white/70"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-              
-              {/* Search */}
-              <div className="p-3 border-b border-gray-200">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    placeholder="Search messages"
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+              {searchQuery.trim() !== "" && (
+                <div className="mt-2 text-xs text-gray-500 pl-1">
+                  Found {filteredMessages.length}{" "}
+                  {filteredMessages.length === 1 ? "message" : "messages"}
                 </div>
-                {searchQuery.trim() !== "" && (
-                  <div className="mt-2 text-sm text-gray-500">
-                    Found {filteredMessages.length} {filteredMessages.length === 1 ? 'message' : 'messages'}
-                  </div>
-                )}
+              )}
+            </div>
+
+            {/* Chat rooms list */}
+            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
+              <div className="text-xs font-semibold text-blue-600 uppercase mb-2 px-1">
+                Chat Rooms
               </div>
-              
-              {/* Chat rooms list */}
-              <div className="flex-1 overflow-y-auto p-3">
-                <div className="text-xs font-medium text-gray-500 mb-2">CHAT ROOMS</div>
-                <div className="space-y-2">
-                  {/* General chat room option */}
-                  <div 
-                    onClick={() => navigate('/private/CommunicationHub')}
-                    className={`flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer ${!reportId ? 'bg-blue-50' : ''}`}
+              <div className="space-y-1">
+                {/* General chat room option */}
+                <div
+                  onClick={() => {
+                    navigate("/private/CommunicationHub");
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`flex items-center p-2 rounded-lg cursor-pointer transition-colors duration-200 ${
+                    !reportId
+                      ? "bg-blue-100 text-blue-800 font-medium shadow-sm"
+                      : "hover:bg-blue-50 text-gray-700"
+                  }`}
+                >
+                  <div className="relative mr-3 flex-shrink-0">
+                    <div className="h-9 w-9 rounded-full bg-blue-200 flex items-center justify-center">
+                      <MessageSquare className="h-5 w-5 text-blue-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm">General Discussion</p>
+                    <p className="text-xs text-gray-500">Team-wide chat</p>
+                  </div>
+                </div>
+
+                {/* Current report room (if applicable) */}
+                {reportId && (
+                  <div
+                    className="flex items-center p-2 bg-blue-100 rounded-lg cursor-pointer shadow-sm"
+                    onClick={() => setIsSidebarOpen(false)}
                   >
-                    <div className="relative mr-3">
-                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <MessageSquare className="h-4 w-4 text-blue-600" />
+                    <div className="relative mr-3 flex-shrink-0">
+                      <div className="h-9 w-9 rounded-full bg-blue-200 flex items-center justify-center">
+                        <AlertTriangle className="h-5 w-5 text-red-500" />
                       </div>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">General Discussion</p>
-                      <p className="text-xs text-gray-500">Team-wide chat</p>
+                      <p className="text-sm font-medium text-blue-800">Report: {reportId}</p>
+                      <p className="text-xs text-gray-500">Report-specific discussion</p>
                     </div>
                   </div>
-                  
-                  {/* Current report room (if applicable) */}
-                  {reportId && (
-                    <div 
-                      className="flex items-center p-2 bg-blue-50 rounded-md cursor-pointer"
-                    >
-                      <div className="relative mr-3">
-                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                          <MessageSquare className="h-4 w-4 text-blue-600" />
+                )}
+              </div>
+
+              {/* Participants section */}
+              <div className="pt-4 mt-4 border-t border-blue-100">
+                <div className="text-xs font-semibold text-blue-600 uppercase mb-2 px-1">
+                  Online •{" "}
+                  {messages.length > 0
+                    ? [...new Set(messages.map((m) => m.user))].length
+                    : 0}{" "}
+                  Participants
+                </div>
+                <div className="space-y-1">
+                  {messages.length > 0 &&
+                    [...new Set(messages.map((m) => m.user))].map((user, idx) => (
+                      <div key={idx} className="flex items-center p-2 rounded-lg hover:bg-blue-50">
+                        <div className="relative mr-3 flex-shrink-0">
+                          <img
+                            src={`https://api.dicebear.com/6.x/initials/svg?seed=${user}`}
+                            alt={user}
+                            className="h-8 w-8 rounded-full border border-blue-200"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXVzZXItc3RhbmRhcmQiPjxwYXRoIGQ9Ik0xOSAxOVY1YTIgMiAwIDAgMC0yLTJIMDdhMiAyIDAgMCAwLTIgMi41TDggMTIuNXpNMTYgMThhMSAxIDAgMCAxLTEgMUgxMWEyIDIgMCAwIDEtMi0yVjExYTMgMyAwIDAgMSAzLTNoMkE3IDcgMCAwIDEgMTYgMTZWMThaIiBmaWxsPSJjdXJyZW50Q29sb3IiLz48cGF0aCBkPSJNOCAxMmg0Yy0xLjUgMC0yLjUgMS0yLjUgMi41TDEwIDExIi8+PC9zdmc+"
+                            }}
+                          />
+                          <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-500 ring-1 ring-white"></span>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-800">{user}</p>
+                          <p className="text-xs text-gray-500">Online</p>
                         </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Report: {reportId}</p>
-                        <p className="text-xs text-gray-500">Report-specific discussion</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Participants section */}
-                  <div className="pt-4">
-                    <div className="text-xs font-medium text-gray-500 mb-2">ONLINE • {messages.length > 0 ? [...new Set(messages.map(m => m.user))].length : 0} PARTICIPANTS</div>
-                    {messages.length > 0 && 
-                      [...new Set(messages.map(m => m.user))].map((user, idx) => (
-                        <div key={idx} className="flex items-center p-2 hover:bg-gray-50 rounded-md">
-                          <div className="relative mr-3">
-                            <img 
-                              src={`https://api.dicebear.com/6.x/initials/svg?seed=${user}`}
-                              alt={user} 
-                              className="h-8 w-8 rounded-full"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = 'https://via.placeholder.com/32?text=U';
-                              }}
-                            />
-                            <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-1 ring-white"></span>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{user}</p>
-                            <p className="text-xs text-gray-500">Online</p>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
+                    ))}
                 </div>
               </div>
             </div>
-            
-            {/* Chat area */}
-            <div className="flex-1 flex flex-col">
-              {/* Chat header */}
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="font-medium text-gray-900">{reportTitle}</h2>
-                <p className="text-sm text-gray-500">
-                  {messages.length > 0 ? [...new Set(messages.map(m => m.user))].length : 0} participants
-                </p>
-                
-                {/* Display disaster details when available */}
-                {reportId && disasterLoading && (
-                  <div className="mt-2 text-sm text-gray-500">
-                    Loading disaster information...
-                  </div>
-                )}
-                
-                {reportId && disasterError && (
-                  <div className="mt-2 flex items-center text-sm text-red-600">
-                    <AlertTriangle className="h-4 w-4 mr-1" />
-                    {disasterError}
-                  </div>
-                )}
-                
-                {reportId && disaster && !disasterLoading && !disasterError && (
-                  <div className="mt-3 bg-gray-50 rounded-md p-3 border border-gray-200">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-gray-500">Emergency:</span> 
-                        <span className="ml-1 font-medium text-gray-900">{disaster.emergency_type}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Status:</span> 
-                        <span className="ml-1 font-medium text-gray-900">{disaster.status}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Location:</span> 
-                        <span className="ml-1 font-medium text-gray-900">{`${disaster.latitude}, ${disaster.longitude}`}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">People affected:</span> 
-                        <span className="ml-1 font-medium text-gray-900">{disaster.people_count}</span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-gray-500">Situation:</span> 
-                        <span className="ml-1 font-medium text-gray-900">{disaster.situation}</span>
-                      </div>
-                      {disaster.citizen_survival_guide && (
-                        <div className="col-span-2">
-                          <span className="text-gray-500">Survival guide:</span> 
-                          <span className="ml-1 font-medium text-gray-900">{disaster.citizen_survival_guide}</span>
-                        </div>
-                      )}
-                      {disaster.government_report && (
-                        <div className="col-span-2">
-                          <span className="text-gray-500">Government report:</span> 
-                          <span className="ml-1 font-medium text-gray-900">{disaster.government_report}</span>
-                        </div>
-                      )}
-                      {disaster.image_url && (
-                        <div className="col-span-2 mt-2">
-                          <img 
-                            src={disaster.image_url} 
-                            alt="Disaster scene" 
-                            className="h-32 object-cover rounded-md"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = 'https://via.placeholder.com/300x200?text=Image+Unavailable';
-                            }}
-                          />
-                        </div>
-                      )}
+          </div>
+
+          {/* Chat area */}
+          <div className="flex-1 flex flex-col bg-blue-50/20 relative custom-scrollbar">
+            {/* Chat header */}
+            <div className="p-4 bg-white/80 backdrop-blur-md border-b border-blue-100 shadow-md sticky top-0 z-10">
+              <h2 className="font-semibold text-gray-800 text-xl">{reportTitle}</h2>
+              <p className="text-sm text-gray-600">
+                {messages.length > 0 ? [...new Set(messages.map((m) => m.user))].length : 0}{" "}
+                participants
+              </p>
+
+              {/* Disaster details */}
+              {reportId && disasterLoading && (
+                <div className="mt-3 text-sm text-gray-500 animate-pulse">
+                  Loading disaster information...
+                </div>
+              )}
+
+              {reportId && disasterError && (
+                <div className="mt-3 flex items-center text-sm text-red-600 bg-red-100 p-2 rounded-md border border-red-300">
+                  <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span>{disasterError}</span>
+                </div>
+              )}
+
+              {reportId && disaster && !disasterLoading && !disasterError && (
+                <div className="mt-4 bg-white/70 rounded-lg p-4 border border-blue-200 shadow-sm text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-gray-600 font-medium">Emergency:</span>{" "}
+                      <span className="text-gray-800">{disaster.emergency_type}</span>
                     </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Messages area */}
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-                {messages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <p className="text-gray-500">
-                        {reportId ? `No messages yet in this report discussion. Be the first to send one!` : `No general messages yet. Start the conversation!`}
-                      </p>
+                    <div>
+                      <span className="text-gray-600 font-medium">Status:</span>{" "}
+                      <span className="text-gray-800">{disaster.status}</span>
                     </div>
-                  </div>
-                ) : searchQuery.trim() !== "" && filteredMessages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <p className="text-gray-500">No messages found for "{searchQuery}"</p>
+                    <div>
+                      <span className="text-gray-600 font-medium">Location:</span>{" "}
+                      <span className="text-gray-800">{`${disaster.latitude}, ${disaster.longitude}`}</span>
                     </div>
-                  </div>
-                ) : (
-                  Object.entries(messagesByDate).map(([date, dateMessages]) => (
-                    <div key={date} className="mb-6">
-                      <div className="flex justify-center mb-4">
-                        <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">{date}</span>
+                    <div>
+                      <span className="text-gray-600 font-medium">People affected:</span>{" "}
+                      <span className="text-gray-800">{disaster.people_count}</span>
+                    </div>
+                    <div className="col-span-1 md:col-span-2">
+                      <span className="text-gray-600 font-medium">Situation:</span>{" "}
+                      <span className="text-gray-800">{disaster.situation}</span>
+                    </div>
+                    {disaster.citizen_survival_guide && (
+                      <div className="col-span-1 md:col-span-2">
+                        <span className="text-gray-600 font-medium">Survival guide:</span>{" "}
+                        <span className="text-gray-800">
+                          {disaster.citizen_survival_guide}
+                        </span>
                       </div>
-                      
-                      <div className="space-y-3">
-                        {dateMessages.map((msg, idx) => (
-                          <div 
-                            key={idx} 
-                            className={`flex ${msg.user === username ? 'justify-end' : 'justify-start'}`}
+                    )}
+                    {disaster.government_report && (
+                      <div className="col-span-1 md:col-span-2">
+                        <span className="text-gray-600 font-medium">Government report:</span>{" "}
+                        <span className="text-gray-800">
+                          {disaster.government_report}
+                        </span>
+                      </div>
+                    )}
+                    {disaster.image_url && (
+                      <div className="col-span-1 md:col-span-2 mt-2">
+                        <img
+                          src={disaster.image_url}
+                          alt="Disaster scene"
+                          className="w-full h-40 object-cover rounded-md border border-blue-200"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = "https://via.placeholder.com/400x160?text=Image+Unavailable";
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Messages area */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-center">
+                  <p className="text-gray-500 italic">
+                    {reportId
+                      ? `No messages yet in this report discussion. Be the first to send one!`
+                      : `No general messages yet. Start the conversation!`}
+                  </p>
+                </div>
+              ) : searchQuery.trim() !== "" && filteredMessages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-center">
+                  <p className="text-gray-500 italic">No messages found for "{searchQuery}"</p>
+                </div>
+              ) : (
+                Object.entries(messagesByDate).map(([date, dateMessages]) => (
+                  <div key={date} className="mb-6">
+                    <div className="flex justify-center mb-4">
+                      <span className="bg-white/70 backdrop-blur-sm text-gray-700 text-xs px-3 py-1 rounded-full shadow-sm border border-blue-100">
+                        {date}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {dateMessages.map((msg, idx) => (
+                        <div
+                          key={idx}
+                          className={`flex ${
+                            msg.user === username ? "justify-end" : "justify-start"
+                          }`}
+                        >
+                          {msg.user !== username && (
+                            <img
+                              src={`https://api.dicebear.com/6.x/initials/svg?seed=${msg.user}`}
+                              alt={msg.user}
+                              className="h-9 w-9 rounded-full mr-3 flex-shrink-0 border border-blue-200 shadow-sm"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xOSAxOVY1YTIgMiAwIDAg0S0yLTJIMDdhMiAyIDAgMCAwLTIgMi41TDggMTIuNXpNMTYgMThhMSAxIDAgMCAxLTEgMUgxMWEyIDIgMCAwIDEtMi0yVjExYTMgMyAwIDAgMSAzLTNoMkE3IDcgMCAwIDEgMTYgMTZWMThaIiBmaWxsPSJjdXJyZW50Q29sb3IiLz48cGF0aCBkPSJNOCAxMmg0Yy0xLjUgMC0yLjUgMS0yLjUgMi41TDEwIDExIi8+PC9zdmc+"
+                              }}
+                            />
+                          )}
+
+                          <div
+                            className={`max-w-[75%] px-4 py-2 rounded-xl shadow-md ${
+                              msg.user === username
+                                ? "bg-blue-500 text-white rounded-br-none"
+                                : "bg-white/80 backdrop-blur-sm text-gray-800 rounded-bl-none border border-blue-100"
+                            }`}
                           >
                             {msg.user !== username && (
-                              <img 
-                                src={`https://api.dicebear.com/6.x/initials/svg?seed=${msg.user}`}
-                                alt={msg.user} 
-                                className="h-10 w-10 rounded-full mr-3 flex-shrink-0"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = 'https://via.placeholder.com/40?text=U';
-                                }}
-                              />
-                            )}
-                            
-                            <div 
-                              className={`max-w-[70%] ${
-                                msg.user === username 
-                                  ? 'bg-blue-100 text-blue-900 rounded-l-lg rounded-br-lg' 
-                                  : 'bg-white border border-gray-200 rounded-r-lg rounded-bl-lg'
-                              } p-3 shadow-sm`}
-                            >
-                              {msg.user !== username && (
-                                <div className="font-medium text-sm text-gray-900 mb-1">{msg.user}</div>
-                              )}
-                              <p className="text-sm">{msg.content}</p>
-                              
-                              <div className="text-xs text-gray-500 mt-1 text-right">
-                                {msg.timestamp && formatTime(msg.timestamp)}
+                              <div className="font-semibold text-sm text-blue-700 mb-1">
+                                {msg.user}
                               </div>
-                            </div>
-                            
-                            {msg.user === username && (
-                              <img 
-                                src={`https://api.dicebear.com/6.x/initials/svg?seed=${msg.user}`}
-                                alt="You" 
-                                className="h-10 w-10 rounded-full ml-3 flex-shrink-0"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = 'https://via.placeholder.com/40?text=U';
-                                }}
-                              />
                             )}
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                              {msg.content}
+                            </p>
+
+                            <div
+                              className={`text-xs mt-1 ${
+                                msg.user === username ? "text-blue-200" : "text-gray-500"
+                              } text-right`}
+                            >
+                              {msg.timestamp && formatTime(msg.timestamp)}
+                            </div>
                           </div>
-                        ))}
-                      </div>
+
+                          {msg.user === username && (
+                            <img
+                              src={`https://api.dicebear.com/6.x/initials/svg?seed=${msg.user}`}
+                              alt="You"
+                              className="h-9 w-9 rounded-full ml-3 flex-shrink-0 border border-blue-200 shadow-sm"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xOSAxOVY1YTIgMiAwIDAg0S0yLTJIMDdhMiAyIDAgMCAwLTIgMi41TDggMTIuNXpNMTYgMThhMSAxIDAgMCAxLTEgMUgxMWEyIDIgMCAwIDEtMi0yVjExYTMgMyAwIDAgMSAzLTNoMkE3IDcgMCAwIDEgMTYgMTZWMThaIiBmaWxsPSJjdXJyZW50Q29sb3IiLz48cGF0aCBkPSJNOCAxMmg0Yy0xLjUgMC0yLjUgMS0yLjUgMi41TDEwIDExIi8+PC9zdmc+"
+                              }}
+                            />
+                          )}
+                        </div>
+                      ))}
+                      <div ref={messagesEndRef} />
                     </div>
-                  ))
-                )}
-              </div>
-              
-              {/* Message input */}
-              <div className="p-4 border-t border-gray-200">
-                <div className="flex items-end space-x-2">
-                  <div className="flex-1">
-                    <textarea
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder={`Type a message in ${reportId ? 'report chat' : 'general chat'}...`}
-                      className="w-full border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 p-2 min-h-[80px]"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          sendMessage();
-                        }
-                      }}
-                    ></textarea>
                   </div>
-                  <button 
-                    onClick={sendMessage}
-                    disabled={!input.trim() || !username}
-                    className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 disabled:bg-gray-300"
-                  >
-                    <Send className="h-5 w-5" />
-                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Message input */}
+            <div className="p-4 bg-white/80 backdrop-blur-md border-t border-blue-100 shadow-lg sticky bottom-0 z-10">
+              <div className="flex items-end space-x-3">
+                <div className="flex-1">
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={`Type a message in ${reportId ? "this report" : "general"} chat...`}
+                    className="w-full border border-blue-200 rounded-xl focus:border-blue-400 focus:ring-blue-400 p-3 min-h-[56px] max-h-[150px] resize-y text-base text-gray-800 placeholder-gray-400 focus:outline-none bg-white/70"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                  ></textarea>
                 </div>
+                <button
+                  onClick={sendMessage}
+                  disabled={!input.trim() || !username}
+                  className="h-12 w-12 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 shadow-lg flex-shrink-0"
+                  aria-label="Send message"
+                >
+                  <Send className="h-6 w-6" />
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+      {/* Overlay for mobile sidebar */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-10 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
     </div>
   );
 };
