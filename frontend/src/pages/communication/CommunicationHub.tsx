@@ -6,6 +6,8 @@ import {
   Send,
   Search,
 } from "lucide-react";
+import { authService } from "../../services/auth"; // Import auth service
+import { Navigate } from "react-router";
 
 type Message = {
   user: string;
@@ -18,9 +20,28 @@ type Message = {
 const CommunicationHub: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [username] = useState("Guest" + Math.floor(Math.random() * 10000));
+  const [username, setUsername] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredMessages, setFilteredMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    // Get authenticated user's name
+    const fetchUserProfile = async () => {
+      try {
+        if (authService.isAuthenticated()) {
+          const userProfile = await authService.getUserProfile();
+          setUsername(userProfile.name);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
   
   useEffect(() => {
     const chatRef = ref(db, "messages");
@@ -46,8 +67,13 @@ const CommunicationHub: React.FC = () => {
     }
   }, [searchQuery, messages]);
 
+  // Redirect to login if not authenticated
+  if (!loading && !authService.isAuthenticated()) {
+    return <Navigate to="/auth/signin" />;
+  }
+
   const sendMessage = () => {
-    if (input.trim()) {
+    if (input.trim() && username) {
       const chatRef = ref(db, "messages");
       push(chatRef, { 
         user: username, 
@@ -101,6 +127,17 @@ const CommunicationHub: React.FC = () => {
     }
     messagesByDate[date].push(message);
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading chat...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 p-4">
@@ -269,7 +306,7 @@ const CommunicationHub: React.FC = () => {
                   </div>
                   <button 
                     onClick={sendMessage}
-                    disabled={!input.trim()}
+                    disabled={!input.trim() || !username}
                     className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 disabled:bg-gray-300"
                   >
                     <Send className="h-5 w-5" />
