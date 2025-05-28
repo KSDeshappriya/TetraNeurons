@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getDatabase, ref, push, onChildAdded } from "firebase/database";
+import { getDatabase, ref, push, onChildAdded, query, orderByChild, equalTo } from "firebase/database";
 import { db } from "../../services/firebase"; // Ensure firebase.ts exports the initialized db
 import {
   MessageSquare,
@@ -7,7 +7,7 @@ import {
   Search,
 } from "lucide-react";
 import { authService } from "../../services/auth"; // Import auth service
-import { Navigate } from "react-router";
+import { Navigate, useLocation, useNavigate } from "react-router";
 
 type Message = {
   user: string;
@@ -15,6 +15,7 @@ type Message = {
   timestamp: string;
   isRead?: boolean;
   avatar?: string;
+  reportId?: string;
 };
 
 const CommunicationHub: React.FC = () => {
@@ -24,6 +25,24 @@ const CommunicationHub: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredMessages, setFilteredMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [reportTitle, setReportTitle] = useState<string>("Group Discussion");
+  
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Extract reportId from URL
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const reportIdParam = queryParams.get('reportId');
+    setReportId(reportIdParam);
+    
+    if (reportIdParam) {
+      setReportTitle(`Report Discussion: ${reportIdParam}`);
+    } else {
+      setReportTitle("General Discussion");
+    }
+  }, [location.search]);
   
   useEffect(() => {
     // Get authenticated user's name
@@ -44,8 +63,19 @@ const CommunicationHub: React.FC = () => {
   }, []);
   
   useEffect(() => {
-    const chatRef = ref(db, "messages");
-    onChildAdded(chatRef, (snapshot) => {
+    setMessages([]); // Clear messages when reportId changes
+    
+    let chatRef;
+    
+    if (reportId) {
+      // If we have a reportId, get messages from the report-specific collection
+      chatRef = ref(db, `messages/${reportId}`);
+    } else {
+      // Otherwise, get general messages from the general messages collection
+      chatRef = ref(db, "messages/general");
+    }
+    
+    const unsubscribe = onChildAdded(chatRef, (snapshot) => {
       const msg = snapshot.val() as Message;
       const msgWithTimestamp = {
         ...msg,
@@ -53,7 +83,12 @@ const CommunicationHub: React.FC = () => {
       };
       setMessages((prev) => [...prev, msgWithTimestamp]);
     });
-  }, []);
+    
+    return () => {
+      // Clean up listener when component unmounts or reportId changes
+      unsubscribe();
+    };
+  }, [reportId]);
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -74,13 +109,17 @@ const CommunicationHub: React.FC = () => {
 
   const sendMessage = () => {
     if (input.trim() && username) {
-      const chatRef = ref(db, "messages");
+      // Create the appropriate path based on whether we have a reportId
+      const chatPath = reportId ? `messages/${reportId}` : "messages/general";
+      const chatRef = ref(db, chatPath);
+      
       push(chatRef, { 
         user: username, 
         content: input,
         timestamp: new Date().toISOString(),
         isRead: false,
         avatar: `https://api.dicebear.com/6.x/initials/svg?seed=${username}`
+        // No need to store reportId in the message since it's part of the path
       });
       setInput("");
     }
@@ -145,7 +184,11 @@ const CommunicationHub: React.FC = () => {
         <div className="flex mb-6">
           <div className="mr-4">
             <h1 className="text-2xl font-bold text-gray-900">Communication Hub</h1>
-            <p className="text-gray-600">Connect and chat with team members</p>
+            <p className="text-gray-600">
+              {reportId 
+                ? `Discussing report: ${reportId}` 
+                : "Connect and chat with team members"}
+            </p>
           </div>
         </div>
         
@@ -157,7 +200,7 @@ const CommunicationHub: React.FC = () => {
               <div className="p-4 border-b border-gray-200">
                 <h2 className="font-medium text-gray-900 flex items-center">
                   <MessageSquare className="h-5 w-5 mr-2" />
-                  Group Chat
+                  Chat Rooms
                 </h2>
               </div>
               
@@ -179,31 +222,68 @@ const CommunicationHub: React.FC = () => {
                 )}
               </div>
               
-              {/* Participant list */}
+              {/* Chat rooms list */}
               <div className="flex-1 overflow-y-auto p-3">
-                <div className="text-xs font-medium text-gray-500 mb-2">ONLINE • {messages.length > 0 ? [...new Set(messages.map(m => m.user))].length : 0} PARTICIPANTS</div>
+                <div className="text-xs font-medium text-gray-500 mb-2">CHAT ROOMS</div>
                 <div className="space-y-2">
-                  {messages.length > 0 && 
-                    [...new Set(messages.map(m => m.user))].map((user, idx) => (
-                      <div key={idx} className="flex items-center p-2 hover:bg-gray-50 rounded-md">
-                        <div className="relative mr-3">
-                          <img 
-                            src={`https://api.dicebear.com/6.x/initials/svg?seed=${user}`}
-                            alt={user} 
-                            className="h-8 w-8 rounded-full"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = 'https://via.placeholder.com/32?text=U';
-                            }}
-                          />
-                          <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-1 ring-white"></span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{user}</p>
-                          <p className="text-xs text-gray-500">Online</p>
+                  {/* General chat room option */}
+                  <div 
+                    onClick={() => navigate('/private/CommunicationHub')}
+                    className={`flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer ${!reportId ? 'bg-blue-50' : ''}`}
+                  >
+                    <div className="relative mr-3">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <MessageSquare className="h-4 w-4 text-blue-600" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">General Discussion</p>
+                      <p className="text-xs text-gray-500">Team-wide chat</p>
+                    </div>
+                  </div>
+                  
+                  {/* Current report room (if applicable) */}
+                  {reportId && (
+                    <div 
+                      className="flex items-center p-2 bg-blue-50 rounded-md cursor-pointer"
+                    >
+                      <div className="relative mr-3">
+                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                          <MessageSquare className="h-4 w-4 text-blue-600" />
                         </div>
                       </div>
-                    ))}
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Report: {reportId}</p>
+                        <p className="text-xs text-gray-500">Report-specific discussion</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Participants section */}
+                  <div className="pt-4">
+                    <div className="text-xs font-medium text-gray-500 mb-2">ONLINE • {messages.length > 0 ? [...new Set(messages.map(m => m.user))].length : 0} PARTICIPANTS</div>
+                    {messages.length > 0 && 
+                      [...new Set(messages.map(m => m.user))].map((user, idx) => (
+                        <div key={idx} className="flex items-center p-2 hover:bg-gray-50 rounded-md">
+                          <div className="relative mr-3">
+                            <img 
+                              src={`https://api.dicebear.com/6.x/initials/svg?seed=${user}`}
+                              alt={user} 
+                              className="h-8 w-8 rounded-full"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = 'https://via.placeholder.com/32?text=U';
+                              }}
+                            />
+                            <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-1 ring-white"></span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{user}</p>
+                            <p className="text-xs text-gray-500">Online</p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -212,7 +292,7 @@ const CommunicationHub: React.FC = () => {
             <div className="flex-1 flex flex-col">
               {/* Chat header */}
               <div className="p-4 border-b border-gray-200">
-                <h2 className="font-medium text-gray-900">Group Discussion</h2>
+                <h2 className="font-medium text-gray-900">{reportTitle}</h2>
                 <p className="text-sm text-gray-500">
                   {messages.length > 0 ? [...new Set(messages.map(m => m.user))].length : 0} participants
                 </p>
@@ -220,7 +300,15 @@ const CommunicationHub: React.FC = () => {
               
               {/* Messages area */}
               <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-                {searchQuery.trim() !== "" && filteredMessages.length === 0 ? (
+                {messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <p className="text-gray-500">
+                        {reportId ? `No messages yet in this report discussion. Be the first to send one!` : `No general messages yet. Start the conversation!`}
+                      </p>
+                    </div>
+                  </div>
+                ) : searchQuery.trim() !== "" && filteredMessages.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <p className="text-gray-500">No messages found for "{searchQuery}"</p>
@@ -294,7 +382,7 @@ const CommunicationHub: React.FC = () => {
                     <textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      placeholder="Type a message..."
+                      placeholder={`Type a message in ${reportId ? 'report chat' : 'general chat'}...`}
                       className="w-full border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 p-2 min-h-[80px]"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
