@@ -1,13 +1,35 @@
 import React, { useEffect, useState } from "react";
 import { getDatabase, ref, push, onChildAdded, query, orderByChild, equalTo } from "firebase/database";
-import { db } from "../../services/firebase"; // Ensure firebase.ts exports the initialized db
+import { db, firestore } from "../../services/firebase"; // Import both db and firestore
 import {
   MessageSquare,
   Send,
   Search,
+  AlertTriangle
 } from "lucide-react";
 import { authService } from "../../services/auth"; // Import auth service
 import { Navigate, useLocation, useNavigate } from "react-router";
+import { collection, doc, getDoc } from "firebase/firestore";
+
+// Disaster interface based on the image
+interface Disaster {
+  ai_processing_time?: number;
+  citizen_survival_guide?: string;
+  created_at: number;
+  disaster_id: string;
+  emergency_type: string;
+  geohash: string;
+  government_report?: string;
+  image_url?: string;
+  latitude: number;
+  longitude: number;
+  people_count: string;
+  situation: string;
+  status: string;
+  submitted_time: number;
+  urgency_level: string;
+  user_id: string;
+}
 
 type Message = {
   user: string;
@@ -27,6 +49,9 @@ const CommunicationHub: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [reportId, setReportId] = useState<string | null>(null);
   const [reportTitle, setReportTitle] = useState<string>("Group Discussion");
+  const [disaster, setDisaster] = useState<Disaster | null>(null);
+  const [disasterLoading, setDisasterLoading] = useState(false);
+  const [disasterError, setDisasterError] = useState<string | null>(null);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -39,8 +64,42 @@ const CommunicationHub: React.FC = () => {
     
     if (reportIdParam) {
       setReportTitle(`Report Discussion: ${reportIdParam}`);
+      
+      // Fetch disaster details if we have a reportId
+      const fetchDisasterDetails = async () => {
+        if (!reportIdParam) return;
+        
+        setDisasterLoading(true);
+        setDisasterError(null);
+        try {
+          // Use the correct path format without quotes around the document ID
+          const disasterRef = doc(firestore, "disasters", reportIdParam);
+          console.log("Disaster reference:", disasterRef.id);
+          console.log("Fetching disaster details for reportId:", reportIdParam);
+          
+          const disasterSnap = await getDoc(disasterRef);
+          console.log("Disaster snapshot:", disasterSnap.exists(), disasterSnap.data());
+          
+          if (disasterSnap.exists()) {
+        const disasterData = disasterSnap.data() as Disaster;
+        setDisaster(disasterData);
+        setReportTitle(`${disasterData.emergency_type.toUpperCase()} Report`);
+          } else {
+        console.log("No disaster document found for ID:", reportIdParam);
+        setDisasterError("Disaster information not found");
+          }
+        } catch (error) {
+          console.error("Error fetching disaster details:", error);
+          setDisasterError("Failed to load disaster information");
+        } finally {
+          setDisasterLoading(false);
+        }
+      };
+      
+      fetchDisasterDetails();
     } else {
       setReportTitle("General Discussion");
+      setDisaster(null);
     }
   }, [location.search]);
   
@@ -296,6 +355,72 @@ const CommunicationHub: React.FC = () => {
                 <p className="text-sm text-gray-500">
                   {messages.length > 0 ? [...new Set(messages.map(m => m.user))].length : 0} participants
                 </p>
+                
+                {/* Display disaster details when available */}
+                {reportId && disasterLoading && (
+                  <div className="mt-2 text-sm text-gray-500">
+                    Loading disaster information...
+                  </div>
+                )}
+                
+                {reportId && disasterError && (
+                  <div className="mt-2 flex items-center text-sm text-red-600">
+                    <AlertTriangle className="h-4 w-4 mr-1" />
+                    {disasterError}
+                  </div>
+                )}
+                
+                {reportId && disaster && !disasterLoading && !disasterError && (
+                  <div className="mt-3 bg-gray-50 rounded-md p-3 border border-gray-200">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">Emergency:</span> 
+                        <span className="ml-1 font-medium text-gray-900">{disaster.emergency_type}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Status:</span> 
+                        <span className="ml-1 font-medium text-gray-900">{disaster.status}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Location:</span> 
+                        <span className="ml-1 font-medium text-gray-900">{`${disaster.latitude}, ${disaster.longitude}`}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">People affected:</span> 
+                        <span className="ml-1 font-medium text-gray-900">{disaster.people_count}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-gray-500">Situation:</span> 
+                        <span className="ml-1 font-medium text-gray-900">{disaster.situation}</span>
+                      </div>
+                      {disaster.citizen_survival_guide && (
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Survival guide:</span> 
+                          <span className="ml-1 font-medium text-gray-900">{disaster.citizen_survival_guide}</span>
+                        </div>
+                      )}
+                      {disaster.government_report && (
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Government report:</span> 
+                          <span className="ml-1 font-medium text-gray-900">{disaster.government_report}</span>
+                        </div>
+                      )}
+                      {disaster.image_url && (
+                        <div className="col-span-2 mt-2">
+                          <img 
+                            src={disaster.image_url} 
+                            alt="Disaster scene" 
+                            className="h-32 object-cover rounded-md"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = 'https://via.placeholder.com/300x200?text=Image+Unavailable';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Messages area */}
