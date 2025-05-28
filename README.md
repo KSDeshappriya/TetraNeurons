@@ -201,7 +201,7 @@ Volunteers and general users are not restricted by domain.
 
 * **Weather Data**:
 
-  * We use the **OpenWeather API** for precipitation data relevant to disasters.
+  * We use the **OpenWeather API** for Map precipitation data filter relevant to disasters.
   * Although the API allows only **60 calls per minute**, this is considered acceptable under expected usage.
 
 ---
