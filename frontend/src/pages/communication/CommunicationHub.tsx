@@ -1,799 +1,532 @@
-import React, { useState } from 'react';
-import { 
-  MessageSquare, 
-  Users, 
-  User, 
-  Send, 
-  Search, 
-  Bell, 
-  Paperclip, 
-  Image, 
-  Plus, 
-  ChevronRight,
-  Clock,
-  Phone,
-  Video,
-  MoreVertical,
-  ArrowDown
-} from 'lucide-react';
-import Card from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Textarea } from '../../components/ui/Textarea';
+import React, { useEffect, useState } from "react";
+import { getDatabase, ref, push, onChildAdded, query, orderByChild, equalTo } from "firebase/database";
+import { db, firestore } from "../../services/firebase"; // Import both db and firestore
+import {
+  MessageSquare,
+  Send,
+  Search,
+  AlertTriangle
+} from "lucide-react";
+import { authService } from "../../services/auth"; // Import auth service
+import { Navigate, useLocation, useNavigate } from "react-router";
+import { collection, doc, getDoc } from "firebase/firestore";
 
-interface Message {
-  id: string;
-  sender: {
-    id: string;
-    name: string;
-    avatar: string;
-    role: string;
-    status?: 'online' | 'away' | 'offline';
-  };
+// Disaster interface based on the image
+interface Disaster {
+  ai_processing_time?: number;
+  citizen_survival_guide?: string;
+  created_at: number;
+  disaster_id: string;
+  emergency_type: string;
+  geohash: string;
+  government_report?: string;
+  image_url?: string;
+  latitude: number;
+  longitude: number;
+  people_count: string;
+  situation: string;
+  status: string;
+  submitted_time: number;
+  urgency_level: string;
+  user_id: string;
+}
+
+type Message = {
+  user: string;
   content: string;
   timestamp: string;
-  isRead: boolean;
-  attachments?: Array<{
-    id: string;
-    type: 'image' | 'file';
-    name: string;
-    url: string;
-    size?: string;
-  }>;
-}
-
-interface Conversation {
-  id: string;
-  type: 'direct' | 'group';
-  participants: Array<{
-    id: string;
-    name: string;
-    avatar: string;
-    role: string;
-    status?: 'online' | 'away' | 'offline';
-  }>;
-  lastMessage: Message;
-  unreadCount: number;
-}
+  isRead?: boolean;
+  avatar?: string;
+  reportId?: string;
+};
 
 const CommunicationHub: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'messages' | 'teams'>('messages');
-  const [selectedConversation, setSelectedConversation] = useState<string | null>('conv-001');
-  const [newMessage, setNewMessage] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [username, setUsername] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredMessages, setFilteredMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [reportTitle, setReportTitle] = useState<string>("Group Discussion");
+  const [disaster, setDisaster] = useState<Disaster | null>(null);
+  const [disasterLoading, setDisasterLoading] = useState(false);
+  const [disasterError, setDisasterError] = useState<string | null>(null);
   
-  // Mock conversations data
-  const conversations: Conversation[] = [
-    {
-      id: 'conv-001',
-      type: 'direct',
-      participants: [
-        {
-          id: 'user-002', // Not the current user
-          name: 'Dr. Sarah Johnson',
-          avatar: '/avatars/sarah.jpg',
-          role: 'Medical Response',
-          status: 'online'
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Extract reportId from URL
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const reportIdParam = queryParams.get('reportId');
+    setReportId(reportIdParam);
+    
+    if (reportIdParam) {
+      setReportTitle(`Report Discussion: ${reportIdParam}`);
+      
+      // Fetch disaster details if we have a reportId
+      const fetchDisasterDetails = async () => {
+        if (!reportIdParam) return;
+        
+        setDisasterLoading(true);
+        setDisasterError(null);
+        try {
+          // Use the correct path format without quotes around the document ID
+          const disasterRef = doc(firestore, "disasters", reportIdParam);
+          console.log("Disaster reference:", disasterRef.id);
+          console.log("Fetching disaster details for reportId:", reportIdParam);
+          
+          const disasterSnap = await getDoc(disasterRef);
+          console.log("Disaster snapshot:", disasterSnap.exists(), disasterSnap.data());
+          
+          if (disasterSnap.exists()) {
+        const disasterData = disasterSnap.data() as Disaster;
+        setDisaster(disasterData);
+        setReportTitle(`${disasterData.emergency_type.toUpperCase()} Report`);
+          } else {
+        console.log("No disaster document found for ID:", reportIdParam);
+        setDisasterError("Disaster information not found");
+          }
+        } catch (error) {
+          console.error("Error fetching disaster details:", error);
+          setDisasterError("Failed to load disaster information");
+        } finally {
+          setDisasterLoading(false);
         }
-      ],
-      lastMessage: {
-        id: 'msg-001',
-        sender: {
-          id: 'user-002',
-          name: 'Dr. Sarah Johnson',
-          avatar: '/avatars/sarah.jpg',
-          role: 'Medical Response'
-        },
-        content: "We need additional medical supplies at the south evacuation center. Can you coordinate?",
-        timestamp: '2023-06-15T14:30:00',
-        isRead: false
-      },
-      unreadCount: 3
-    },
-    {
-      id: 'conv-002',
-      type: 'group',
-      participants: [
-        {
-          id: 'user-003',
-          name: 'Emergency Response Team',
-          avatar: '/avatars/team.jpg',
-          role: 'Team',
-          status: 'online'
-        }
-      ],
-      lastMessage: {
-        id: 'msg-002',
-        sender: {
-          id: 'user-003',
-          name: 'Mike Chen',
-          avatar: '/avatars/mike.jpg',
-          role: 'Rescue Coordinator'
-        },
-        content: "Updates on the north district: roads are now accessible, power still out in sectors 3-5.",
-        timestamp: '2023-06-15T10:15:00',
-        isRead: true
-      },
-      unreadCount: 0
-    },
-    {
-      id: 'conv-003',
-      type: 'direct',
-      participants: [
-        {
-          id: 'user-004',
-          name: 'Alex Rodriguez',
-          avatar: '/avatars/alex.jpg',
-          role: 'Volunteer Coordinator',
-          status: 'away'
-        }
-      ],
-      lastMessage: {
-        id: 'msg-003',
-        sender: {
-          id: 'user-001', // Current user
-          name: 'You',
-          avatar: '/avatars/you.jpg',
-          role: 'Volunteer'
-        },
-        content: "I\"ve submitted my report for the west side flood relief efforts.",
-        timestamp: '2023-06-14T16:45:00',
-        isRead: true
-      },
-      unreadCount: 0
+      };
+      
+      fetchDisasterDetails();
+    } else {
+      setReportTitle("General Discussion");
+      setDisaster(null);
     }
-  ];
+  }, [location.search]);
   
-  const messages: Record<string, Message[]> = {
-    'conv-001': [
-      {
-        id: 'msg-101',
-        sender: {
-          id: 'user-002',
-          name: 'Dr. Sarah Johnson',
-          avatar: '/avatars/sarah.jpg',
-          role: 'Medical Response'
-        },
-        content: "Hello there! How is the volunteer work going?",
-        timestamp: '2023-06-15T09:30:00',
-        isRead: true
-      },
-      {
-        id: 'msg-102',
-        sender: {
-          id: 'user-001', // Current user
-          name: 'You',
-          avatar: '/avatars/you.jpg',
-          role: 'Volunteer'
-        },
-        content: "It is going well! I have been helping at the downtown shelter for the past two days.",
-        timestamp: '2023-06-15T09:45:00',
-        isRead: true
-      },
-      {
-        id: 'msg-103',
-        sender: {
-          id: 'user-002',
-          name: 'Dr. Sarah Johnson',
-          avatar: '/avatars/sarah.jpg',
-          role: 'Medical Response'
-        },
-        content: "That is great to hear. We need additional medical supplies at the south evacuation center. Can you coordinate?",
-        timestamp: '2023-06-15T14:30:00',
+  useEffect(() => {
+    // Get authenticated user's name
+    const fetchUserProfile = async () => {
+      try {
+        if (authService.isAuthenticated()) {
+          const userProfile = await authService.getUserProfile();
+          setUsername(userProfile.name);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+  
+  useEffect(() => {
+    setMessages([]); // Clear messages when reportId changes
+    
+    let chatRef;
+    
+    if (reportId) {
+      // If we have a reportId, get messages from the report-specific collection
+      chatRef = ref(db, `messages/${reportId}`);
+    } else {
+      // Otherwise, get general messages from the general messages collection
+      chatRef = ref(db, "messages/general");
+    }
+    
+    const unsubscribe = onChildAdded(chatRef, (snapshot) => {
+      const msg = snapshot.val() as Message;
+      const msgWithTimestamp = {
+        ...msg,
+        timestamp: msg.timestamp || new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, msgWithTimestamp]);
+    });
+    
+    return () => {
+      // Clean up listener when component unmounts or reportId changes
+      unsubscribe();
+    };
+  }, [reportId]);
+
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredMessages([]);
+    } else {
+      const filtered = messages.filter((msg) => 
+        msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        msg.user.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredMessages(filtered);
+    }
+  }, [searchQuery, messages]);
+
+  // Redirect to login if not authenticated
+  if (!loading && !authService.isAuthenticated()) {
+    return <Navigate to="/auth/signin" />;
+  }
+
+  const sendMessage = () => {
+    if (input.trim() && username) {
+      // Create the appropriate path based on whether we have a reportId
+      const chatPath = reportId ? `messages/${reportId}` : "messages/general";
+      const chatRef = ref(db, chatPath);
+      
+      push(chatRef, { 
+        user: username, 
+        content: input,
+        timestamp: new Date().toISOString(),
         isRead: false,
-        attachments: [
-          {
-            id: 'att-001',
-            type: 'file',
-            name: 'supply_needs.pdf',
-            url: '/files/supply_needs.pdf',
-            size: '1.2 MB'
-          }
-        ]
-      },
-      {
-        id: 'msg-104',
-        sender: {
-          id: 'user-002',
-          name: 'Dr. Sarah Johnson',
-          avatar: '/avatars/sarah.jpg',
-          role: 'Medical Response'
-        },
-        content: "I have attached the list of needed supplies and quantities.",
-        timestamp: '2023-06-15T14:31:00',
-        isRead: false
-      },
-      {
-        id: 'msg-105',
-        sender: {
-          id: 'user-002',
-          name: 'Dr. Sarah Johnson',
-          avatar: '/avatars/sarah.jpg',
-          role: 'Medical Response'
-        },
-        content: "Please let me know if you can help with this by today.",
-        timestamp: '2023-06-15T14:32:00',
-        isRead: false
-      }
-    ],
-    'conv-002': [
-      {
-        id: 'msg-201',
-        sender: {
-          id: 'user-005',
-          name: 'James Wilson',
-          avatar: '/avatars/james.jpg',
-          role: 'Logistics'
-        },
-        content: "Team, we need to coordinate the distribution of water and food supplies today.",
-        timestamp: '2023-06-14T08:15:00',
-        isRead: true
-      },
-      {
-        id: 'msg-202',
-        sender: {
-          id: 'user-006',
-          name: 'Lisa Patel',
-          avatar: '/avatars/lisa.jpg',
-          role: 'Communications'
-        },
-        content: "I can handle the east district route. Already have three trucks ready.",
-        timestamp: '2023-06-14T08:25:00',
-        isRead: true
-      },
-      {
-        id: 'msg-203',
-        sender: {
-          id: 'user-001', // Current user
-          name: 'You',
-          avatar: '/avatars/you.jpg',
-          role: 'Volunteer'
-        },
-        content: "I will take the south district with my team. We have 6 volunteers available today.",
-        timestamp: '2023-06-14T08:30:00',
-        isRead: true
-      },
-      {
-        id: 'msg-204',
-        sender: {
-          id: 'user-003',
-          name: 'Mike Chen',
-          avatar: '/avatars/mike.jpg',
-          role: 'Rescue Coordinator'
-        },
-        content: "Updates on the north district: roads are now accessible, power still out in sectors 3-5.",
-        timestamp: '2023-06-15T10:15:00',
-        isRead: true,
-        attachments: [
-          {
-            id: 'att-002',
-            type: 'image',
-            name: 'road_status.jpg',
-            url: '/images/road_status.jpg'
-          }
-        ]
-      }
-    ],
-    'conv-003': [
-      {
-        id: 'msg-301',
-        sender: {
-          id: 'user-004',
-          name: 'Alex Rodriguez',
-          avatar: '/avatars/alex.jpg',
-          role: 'Volunteer Coordinator'
-        },
-        content: "Hi there! Can you send me your report on the west side flood relief efforts?",
-        timestamp: '2023-06-13T15:20:00',
-        isRead: true
-      },
-      {
-        id: 'msg-302',
-        sender: {
-          id: 'user-001', // Current user
-          name: 'You',
-          avatar: '/avatars/you.jpg',
-          role: 'Volunteer'
-        },
-        content: "Sure! I have been working on it and will send it shortly.",
-        timestamp: '2023-06-14T09:10:00',
-        isRead: true
-      },
-      {
-        id: 'msg-303',
-        sender: {
-          id: 'user-004',
-          name: 'Alex Rodriguez',
-          avatar: '/avatars/alex.jpg',
-          role: 'Volunteer Coordinator'
-        },
-        content: "Great, thank you. We need it for the coordination meeting tomorrow.",
-        timestamp: '2023-06-14T09:15:00',
-        isRead: true
-      },
-      {
-        id: 'msg-304',
-        sender: {
-          id: 'user-001', // Current user
-          name: 'You',
-          avatar: '/avatars/you.jpg',
-          role: 'Volunteer'
-        },
-        content: "I have submitted my report for the west side flood relief efforts.",
-        timestamp: '2023-06-14T16:45:00',
-        isRead: true,
-        attachments: [
-          {
-            id: 'att-003',
-            type: 'file',
-            name: 'west_side_flood_report.pdf',
-            url: '/files/west_side_flood_report.pdf',
-            size: '3.5 MB'
-          }
-        ]
-      }
-    ]
-  };
-  
-  // Team related data - for Teams tab
-  const teams = [
-    {
-      id: 'team-001',
-      name: 'Emergency Response Alpha',
-      members: 8,
-      avatar: '/avatars/team-alpha.jpg',
-      description: 'First responders and medical personnel for central district'
-    },
-    {
-      id: 'team-002',
-      name: 'Logistics & Supply Group',
-      members: 12,
-      avatar: '/avatars/team-logistics.jpg',
-      description: 'Coordinating supply distribution across affected areas'
-    },
-    {
-      id: 'team-003',
-      name: 'Volunteer Network',
-      members: 24,
-      avatar: '/avatars/team-volunteer.jpg',
-      description: 'Community volunteers providing general assistance and support'
+        avatar: `https://api.dicebear.com/6.x/initials/svg?seed=${username}`
+        // No need to store reportId in the message since it's part of the path
+      });
+      setInput("");
     }
-  ];
-  
-  const getCurrentMessages = () => {
-    if (!selectedConversation) return [];
-    return messages[selectedConversation] || [];
-  };
-  
-  const getConversationName = (conversation: Conversation) => {
-    if (conversation.type === 'direct') {
-      return conversation.participants[0]?.name || 'Unknown';
-    }
-    // For group chats
-    return conversation.participants[0]?.name || 'Group Chat';
-  };
-  
-  const getConversationAvatar = (conversation: Conversation) => {
-    const defaultAvatar = '/avatars/default.jpg';
-    if (conversation.type === 'direct') {
-      return conversation.participants[0]?.avatar || defaultAvatar;
-    }
-    return conversation.participants[0]?.avatar || defaultAvatar;
-  };
-  
-  const getConversationRole = (conversation: Conversation) => {
-    if (conversation.type === 'direct') {
-      return conversation.participants[0]?.role || '';
-    }
-    return 'Group';
-  };
-  
-  const getParticipantStatus = (conversation: Conversation) => {
-    if (conversation.type === 'direct') {
-      return conversation.participants[0]?.status || 'offline';
-    }
-    return null;
   };
   
   const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-  
-  const formatDate = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString();
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return "";
     }
   };
   
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedConversation) return;
-    
-    // In a real app, here we'd send the message to a server
-    console.log(`Sending message to ${selectedConversation}: ${newMessage}`);
-    
-    // Reset input
-    setNewMessage('');
-  };
-  
-  const renderMessages = () => {
-    const messagesForConversation = getCurrentMessages();
-    
-    // Group messages by date
-    const messagesByDate: Record<string, Message[]> = {};
-    messagesForConversation.forEach((message) => {
-      const date = formatDate(message.timestamp);
-      if (!messagesByDate[date]) {
-        messagesByDate[date] = [];
+  const formatDate = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      if (date.toDateString() === today.toDateString()) {
+        return 'Today';
+      } else if (date.toDateString() === yesterday.toDateString()) {
+        return 'Yesterday';
+      } else {
+        return date.toLocaleDateString();
       }
-      messagesByDate[date].push(message);
-    });
+    } catch (e) {
+      return "Unknown date";
+    }
+  };
+
+  // Group messages by date - use filtered messages when search is active
+  const messagesByDate: Record<string, Message[]> = {};
+  const messagesToDisplay = searchQuery.trim() !== "" ? filteredMessages : messages;
+
+  messagesToDisplay.forEach((message) => {
+    if (!message.timestamp) return;
     
-    return Object.entries(messagesByDate).map(([date, dateMessages]) => (
-      <div key={date} className="mb-6">
-        <div className="flex justify-center mb-4">
-          <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">{date}</span>
-        </div>
-        
-        <div className="space-y-3">
-          {dateMessages.map((message) => (
-            <div 
-              key={message.id} 
-              className={`flex ${message.sender.id === 'user-001' ? 'justify-end' : 'justify-start'}`}
-            >
-              {message.sender.id !== 'user-001' && (
-                <img 
-                  src={message.sender.avatar} 
-                  alt={message.sender.name} 
-                  className="h-10 w-10 rounded-full mr-3 flex-shrink-0"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = 'https://via.placeholder.com/40?text=User';
-                  }}
-                />
-              )}
-              
-              <div 
-                className={`max-w-[70%] ${
-                  message.sender.id === 'user-001' 
-                    ? 'bg-primary-100 text-primary-900 rounded-l-lg rounded-br-lg' 
-                    : 'bg-white border border-gray-200 rounded-r-lg rounded-bl-lg'
-                } p-3 shadow-sm`}
-              >
-                {message.sender.id !== 'user-001' && (
-                  <div className="font-medium text-sm text-gray-900 mb-1">{message.sender.name}</div>
-                )}
-                <p className="text-sm">{message.content}</p>
-                
-                {message.attachments && message.attachments.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    {message.attachments.map((attachment) => (
-                      <div 
-                        key={attachment.id}
-                        className="flex items-center p-2 bg-gray-50 rounded border border-gray-200"
-                      >
-                        {attachment.type === 'image' ? (
-                          <Image className="h-4 w-4 text-gray-500 mr-2" />
-                        ) : (
-                          <Paperclip className="h-4 w-4 text-gray-500 mr-2" />
-                        )}
-                        <span className="text-xs text-gray-700 truncate flex-grow">{attachment.name}</span>
-                        {attachment.size && (
-                          <span className="text-xs text-gray-500 ml-2">{attachment.size}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                <div className="text-xs text-gray-500 mt-1 text-right">
-                  {formatTime(message.timestamp)}
-                </div>
-              </div>
-              
-              {message.sender.id === 'user-001' && (
-                <img 
-                  src={message.sender.avatar} 
-                  alt="You" 
-                  className="h-10 w-10 rounded-full ml-3 flex-shrink-0"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = 'https://via.placeholder.com/40?text=You';
-                  }}
-                />
-              )}
-            </div>
-          ))}
+    const date = formatDate(message.timestamp);
+    if (!messagesByDate[date]) {
+      messagesByDate[date] = [];
+    }
+    messagesByDate[date].push(message);
+  });
+
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading chat...</p>
         </div>
       </div>
-    ));
-  };
-  
+    );
+  }
+
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="flex mb-6">
           <div className="mr-4">
             <h1 className="text-2xl font-bold text-gray-900">Communication Hub</h1>
-            <p className="text-gray-600">Coordinate with team members and other stakeholders</p>
+            <p className="text-gray-600">
+              {reportId 
+                ? `Discussing report: ${reportId}` 
+                : "Connect and chat with team members"}
+            </p>
           </div>
         </div>
         
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
           <div className="flex h-[calc(100vh-200px)]">
-            {/* Left sidebar - Conversations & Teams */}
+            {/* Left sidebar */}
             <div className="w-80 border-r border-gray-200 flex flex-col">
-              {/* Tabs */}
-              <div className="flex border-b border-gray-200">
-                <button 
-                  onClick={() => setActiveTab('messages')}
-                  className={`flex-1 py-4 text-sm font-medium border-b-2 ${
-                    activeTab === 'messages' 
-                      ? 'border-primary-600 text-primary-600' 
-                      : 'border-transparent text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <div className="flex items-center justify-center">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Messages
-                  </div>
-                </button>
-                <button 
-                  onClick={() => setActiveTab('teams')}
-                  className={`flex-1 py-4 text-sm font-medium border-b-2 ${
-                    activeTab === 'teams' 
-                      ? 'border-primary-600 text-primary-600' 
-                      : 'border-transparent text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <div className="flex items-center justify-center">
-                    <Users className="h-4 w-4 mr-2" />
-                    Teams
-                  </div>
-                </button>
+              {/* Header */}
+              <div className="p-4 border-b border-gray-200">
+                <h2 className="font-medium text-gray-900 flex items-center">
+                  <MessageSquare className="h-5 w-5 mr-2" />
+                  Chat Rooms
+                </h2>
               </div>
               
               {/* Search */}
               <div className="p-3 border-b border-gray-200">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder={activeTab === 'messages' ? "Search messages" : "Search teams"}
-                    className="pl-9"
+                  <input
+                    placeholder="Search messages"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-              </div>
-              
-              {/* Conversations or Teams list */}
-              <div className="flex-1 overflow-y-auto">
-                {activeTab === 'messages' ? (
-                  <div className="divide-y divide-gray-200">
-                    {conversations.map((conversation) => (
-                      <button
-                        key={conversation.id}
-                        className={`w-full text-left p-3 hover:bg-gray-50 flex items-start ${
-                          selectedConversation === conversation.id ? 'bg-gray-50' : ''
-                        }`}
-                        onClick={() => setSelectedConversation(conversation.id)}
-                      >
-                        <div className="relative mr-3 flex-shrink-0">
-                          <img 
-                            src={getConversationAvatar(conversation)} 
-                            alt={getConversationName(conversation)}
-                            className="h-10 w-10 rounded-full"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = 'https://via.placeholder.com/40?text=User';
-                            }}
-                          />
-                          {getParticipantStatus(conversation) && (
-                            <span 
-                              className={`absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-1 ring-white ${
-                                getParticipantStatus(conversation) === 'online' ? 'bg-green-400' :
-                                getParticipantStatus(conversation) === 'away' ? 'bg-yellow-400' : 
-                                'bg-gray-300'
-                              }`}
-                            ></span>
-                          )}
-                          {conversation.unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
-                              {conversation.unreadCount}
-                            </span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex justify-between">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {getConversationName(conversation)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {formatTime(conversation.lastMessage.timestamp)}
-                            </p>
-                          </div>
-                          <p className="text-xs text-gray-500 mb-1 truncate">
-                            {getConversationRole(conversation)}
-                          </p>
-                          <p className={`text-xs truncate ${conversation.unreadCount > 0 ? 'font-medium text-gray-900' : 'text-gray-500'}`}>
-                            {conversation.lastMessage.sender.id === 'user-001' ? 'You: ' : ''}
-                            {conversation.lastMessage.content}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-200">
-                    {teams.map((team) => (
-                      <div
-                        key={team.id}
-                        className="p-3 hover:bg-gray-50"
-                      >
-                        <div className="flex items-center">
-                          <img 
-                            src={team.avatar}
-                            alt={team.name}
-                            className="h-10 w-10 rounded-full mr-3 flex-shrink-0"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = 'https://via.placeholder.com/40?text=Team';
-                            }}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {team.name}
-                            </p>
-                            <p className="text-xs text-gray-500 flex items-center">
-                              <Users className="h-3 w-3 mr-1" />
-                              {team.members} members
-                            </p>
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <p className="mt-1 text-xs text-gray-500 line-clamp-2">
-                          {team.description}
-                        </p>
-                      </div>
-                    ))}
+                {searchQuery.trim() !== "" && (
+                  <div className="mt-2 text-sm text-gray-500">
+                    Found {filteredMessages.length} {filteredMessages.length === 1 ? 'message' : 'messages'}
                   </div>
                 )}
               </div>
               
-              {/* Create new */}
-              <div className="p-3 border-t border-gray-200">
-                <Button variant="outline" className="w-full flex items-center justify-center">
-                  <Plus className="h-4 w-4 mr-2" />
-                  {activeTab === 'messages' ? 'New Message' : 'Create Team'}
-                </Button>
+              {/* Chat rooms list */}
+              <div className="flex-1 overflow-y-auto p-3">
+                <div className="text-xs font-medium text-gray-500 mb-2">CHAT ROOMS</div>
+                <div className="space-y-2">
+                  {/* General chat room option */}
+                  <div 
+                    onClick={() => navigate('/private/CommunicationHub')}
+                    className={`flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer ${!reportId ? 'bg-blue-50' : ''}`}
+                  >
+                    <div className="relative mr-3">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <MessageSquare className="h-4 w-4 text-blue-600" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">General Discussion</p>
+                      <p className="text-xs text-gray-500">Team-wide chat</p>
+                    </div>
+                  </div>
+                  
+                  {/* Current report room (if applicable) */}
+                  {reportId && (
+                    <div 
+                      className="flex items-center p-2 bg-blue-50 rounded-md cursor-pointer"
+                    >
+                      <div className="relative mr-3">
+                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                          <MessageSquare className="h-4 w-4 text-blue-600" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Report: {reportId}</p>
+                        <p className="text-xs text-gray-500">Report-specific discussion</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Participants section */}
+                  <div className="pt-4">
+                    <div className="text-xs font-medium text-gray-500 mb-2">ONLINE • {messages.length > 0 ? [...new Set(messages.map(m => m.user))].length : 0} PARTICIPANTS</div>
+                    {messages.length > 0 && 
+                      [...new Set(messages.map(m => m.user))].map((user, idx) => (
+                        <div key={idx} className="flex items-center p-2 hover:bg-gray-50 rounded-md">
+                          <div className="relative mr-3">
+                            <img 
+                              src={`https://api.dicebear.com/6.x/initials/svg?seed=${user}`}
+                              alt={user} 
+                              className="h-8 w-8 rounded-full"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = 'https://via.placeholder.com/32?text=U';
+                              }}
+                            />
+                            <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-1 ring-white"></span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{user}</p>
+                            <p className="text-xs text-gray-500">Online</p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
               </div>
             </div>
             
-            {/* Right content area - Messages */}
-            {activeTab === 'messages' && selectedConversation ? (
-              <div className="flex-1 flex flex-col">
-                {/* Chat header */}
-                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                  <div className="flex items-center">
-                    <img 
-                      src={getConversationAvatar(conversations.find(c => c.id === selectedConversation)!)}
-                      alt={getConversationName(conversations.find(c => c.id === selectedConversation)!)}
-                      className="h-10 w-10 rounded-full mr-3"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = 'https://via.placeholder.com/40?text=User';
+            {/* Chat area */}
+            <div className="flex-1 flex flex-col">
+              {/* Chat header */}
+              <div className="p-4 border-b border-gray-200">
+                <h2 className="font-medium text-gray-900">{reportTitle}</h2>
+                <p className="text-sm text-gray-500">
+                  {messages.length > 0 ? [...new Set(messages.map(m => m.user))].length : 0} participants
+                </p>
+                
+                {/* Display disaster details when available */}
+                {reportId && disasterLoading && (
+                  <div className="mt-2 text-sm text-gray-500">
+                    Loading disaster information...
+                  </div>
+                )}
+                
+                {reportId && disasterError && (
+                  <div className="mt-2 flex items-center text-sm text-red-600">
+                    <AlertTriangle className="h-4 w-4 mr-1" />
+                    {disasterError}
+                  </div>
+                )}
+                
+                {reportId && disaster && !disasterLoading && !disasterError && (
+                  <div className="mt-3 bg-gray-50 rounded-md p-3 border border-gray-200">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">Emergency:</span> 
+                        <span className="ml-1 font-medium text-gray-900">{disaster.emergency_type}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Status:</span> 
+                        <span className="ml-1 font-medium text-gray-900">{disaster.status}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Location:</span> 
+                        <span className="ml-1 font-medium text-gray-900">{`${disaster.latitude}, ${disaster.longitude}`}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">People affected:</span> 
+                        <span className="ml-1 font-medium text-gray-900">{disaster.people_count}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-gray-500">Situation:</span> 
+                        <span className="ml-1 font-medium text-gray-900">{disaster.situation}</span>
+                      </div>
+                      {disaster.citizen_survival_guide && (
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Survival guide:</span> 
+                          <span className="ml-1 font-medium text-gray-900">{disaster.citizen_survival_guide}</span>
+                        </div>
+                      )}
+                      {disaster.government_report && (
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Government report:</span> 
+                          <span className="ml-1 font-medium text-gray-900">{disaster.government_report}</span>
+                        </div>
+                      )}
+                      {disaster.image_url && (
+                        <div className="col-span-2 mt-2">
+                          <img 
+                            src={disaster.image_url} 
+                            alt="Disaster scene" 
+                            className="h-32 object-cover rounded-md"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = 'https://via.placeholder.com/300x200?text=Image+Unavailable';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Messages area */}
+              <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                {messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <p className="text-gray-500">
+                        {reportId ? `No messages yet in this report discussion. Be the first to send one!` : `No general messages yet. Start the conversation!`}
+                      </p>
+                    </div>
+                  </div>
+                ) : searchQuery.trim() !== "" && filteredMessages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <p className="text-gray-500">No messages found for "{searchQuery}"</p>
+                    </div>
+                  </div>
+                ) : (
+                  Object.entries(messagesByDate).map(([date, dateMessages]) => (
+                    <div key={date} className="mb-6">
+                      <div className="flex justify-center mb-4">
+                        <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">{date}</span>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {dateMessages.map((msg, idx) => (
+                          <div 
+                            key={idx} 
+                            className={`flex ${msg.user === username ? 'justify-end' : 'justify-start'}`}
+                          >
+                            {msg.user !== username && (
+                              <img 
+                                src={`https://api.dicebear.com/6.x/initials/svg?seed=${msg.user}`}
+                                alt={msg.user} 
+                                className="h-10 w-10 rounded-full mr-3 flex-shrink-0"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'https://via.placeholder.com/40?text=U';
+                                }}
+                              />
+                            )}
+                            
+                            <div 
+                              className={`max-w-[70%] ${
+                                msg.user === username 
+                                  ? 'bg-blue-100 text-blue-900 rounded-l-lg rounded-br-lg' 
+                                  : 'bg-white border border-gray-200 rounded-r-lg rounded-bl-lg'
+                              } p-3 shadow-sm`}
+                            >
+                              {msg.user !== username && (
+                                <div className="font-medium text-sm text-gray-900 mb-1">{msg.user}</div>
+                              )}
+                              <p className="text-sm">{msg.content}</p>
+                              
+                              <div className="text-xs text-gray-500 mt-1 text-right">
+                                {msg.timestamp && formatTime(msg.timestamp)}
+                              </div>
+                            </div>
+                            
+                            {msg.user === username && (
+                              <img 
+                                src={`https://api.dicebear.com/6.x/initials/svg?seed=${msg.user}`}
+                                alt="You" 
+                                className="h-10 w-10 rounded-full ml-3 flex-shrink-0"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'https://via.placeholder.com/40?text=U';
+                                }}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              {/* Message input */}
+              <div className="p-4 border-t border-gray-200">
+                <div className="flex items-end space-x-2">
+                  <div className="flex-1">
+                    <textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder={`Type a message in ${reportId ? 'report chat' : 'general chat'}...`}
+                      className="w-full border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 p-2 min-h-[80px]"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage();
+                        }
                       }}
-                    />
-                    <div>
-                      <h2 className="text-md font-medium text-gray-900">
-                        {getConversationName(conversations.find(c => c.id === selectedConversation)!)}
-                      </h2>
-                      <div className="flex items-center text-xs text-gray-500">
-                        {getParticipantStatus(conversations.find(c => c.id === selectedConversation)!) && (
-                          <span className={`h-2 w-2 rounded-full mr-2 ${
-                            getParticipantStatus(conversations.find(c => c.id === selectedConversation)!) === 'online' ? 'bg-green-400' :
-                            getParticipantStatus(conversations.find(c => c.id === selectedConversation)!) === 'away' ? 'bg-yellow-400' : 
-                            'bg-gray-300'
-                          }`}></span>
-                        )}
-                        {getConversationRole(conversations.find(c => c.id === selectedConversation)!)}
-                      </div>
-                    </div>
+                    ></textarea>
                   </div>
-                  <div className="flex space-x-2">
-                    <button 
-                      className="p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                      title="Make phone call"
-                      aria-label="Make phone call"
-                    >
-                      <Phone className="h-5 w-5" />
-                    </button>
-                    <button 
-                      className="p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                      title="Start video call"
-                      aria-label="Start video call"
-                    >
-                      <Video className="h-5 w-5" />
-                    </button>
-                    <button 
-                      className="p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                      title="More options"
-                      aria-label="More options"
-                    >
-                      <MoreVertical className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Messages area */}
-                <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-                  {renderMessages()}
-                </div>
-                
-                {/* Message input */}
-                <div className="p-4 border-t border-gray-200">
-                  <div className="flex items-end space-x-2">
-                    <div className="flex-1">
-                      <Textarea
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        className="w-full border-gray-300 rounded-lg focus:border-primary-500 focus:ring-primary-500"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSendMessage();
-                          }
-                        }}
-                      />
-                      <div className="flex items-center mt-2">
-                        <button className="p-2 rounded-full text-gray-500 hover:text-gray-700">
-                          <Paperclip className="h-5 w-5" />
-                        </button>
-                        <button className="p-2 rounded-full text-gray-500 hover:text-gray-700">
-                          <Image className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </div>
-                    <Button 
-                      onClick={handleSendMessage}
-                      disabled={!newMessage.trim()}
-                      className="h-10 w-10 rounded-full p-0 flex items-center justify-center"
-                    >
-                      <Send className="h-5 w-5" />
-                    </Button>
-                  </div>
+                  <button 
+                    onClick={sendMessage}
+                    disabled={!input.trim() || !username}
+                    className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 disabled:bg-gray-300"
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
                 </div>
               </div>
-            ) : activeTab === 'teams' ? (
-              <div className="flex-1 p-8 flex flex-col items-center justify-center text-center">
-                <Users className="h-16 w-16 text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Team Communication</h3>
-                <p className="text-sm text-gray-600 max-w-md mb-6">
-                  Select a team to view members, create group chats, and coordinate responses for your emergency response operations.
-                </p>
-                <Button>
-                  View Team Directory
-                </Button>
-              </div>
-            ) : (
-              <div className="flex-1 p-8 flex flex-col items-center justify-center text-center">
-                <MessageSquare className="h-16 w-16 text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Conversation Selected</h3>
-                <p className="text-sm text-gray-600 max-w-md mb-6">
-                  Choose a conversation from the list or start a new message to communicate with team members and coordinate response efforts.
-                </p>
-                <Button>
-                  Start New Conversation
-                </Button>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
