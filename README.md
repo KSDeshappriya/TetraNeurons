@@ -151,7 +151,7 @@ TOKEN=your_jwt_token_here
 ```bash
 mcp install server.py
 ```
-
+<img src="./screenshots/mcp2.png" width="600" alt="MCP SERVER installation"/>
 <img src="./screenshots/mcp1.png" width="600" alt="MCP SERVER IN ACTION"/>
 
 
