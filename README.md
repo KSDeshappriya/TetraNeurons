@@ -197,7 +197,7 @@ Volunteers and general users are not restricted by domain.so we assume Each gove
 
   * We **do not** use VLMs like CLIP for classification due to high computational cost and low control over label specificity.
   * Instead, a **custom CNN model** is used to classify disaster types and count people—this is faster and cheaper after training.
-  * Additionally, we leverage **Gemini Flash 2 API**, a multimodal model, for more robust image understanding.
+  * Additionally, we leverage **Gemini Flash 2 API**, a multimodal model,which also a VLM capable model for more robust image understanding.
 
 * **Weather Data**:
 
