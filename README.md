@@ -113,6 +113,13 @@ backend/serviceAccountKey.json
 
 ## MCP Server 
 
+This MCP server that provides location-aware disaster response capabilities. This server connects to a disaster management API to help users find nearby emergencies and report assistance needs.
+
+### Tools Available
+
+- `get_nearby_disasters()` - Find disasters near your current location
+- `report_emergency(disaster_id, help_text, urgency_type)` - Report emergency assistance needs
+
 ### Installation & Usage
 
 ### 1. Clone the Repository
