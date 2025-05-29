@@ -236,7 +236,7 @@ const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">AI Processing Time</label>
-                      <p className="text-gray-900">{disasterData.ai_processing_time}ms</p>
+                      <p className="text-gray-900">{disasterData.ai_processing_time}s</p>
                     </div>
                   </div>
                 </div>

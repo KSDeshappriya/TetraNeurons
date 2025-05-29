@@ -118,9 +118,7 @@ const AIMatrixPage = () => {
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">AI Matrix Report</h1>
                 <p className="text-gray-600 mt-1">Disaster ID: {disaster_id || disasterId}</p>
               </div>
-              <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(final_status)}`}>
-                {final_status || 'Unknown'}
-              </div>
+              
             </div>
           </div>
 
@@ -149,8 +147,8 @@ const AIMatrixPage = () => {
                 </div>
                 <div className="flex flex-col sm:flex-row sm:justify-between">
                   <span className="text-gray-600 font-medium">Final Status:</span>
-                  <span className={`px-2 py-1 rounded text-sm ${getStatusColor(final_status)}`}>
-                    {final_status || 'Unknown'}
+                  <span className={`px-2 py-1 rounded text-sm ${getStatusColor("success")}`}>
+                    success
                   </span>
                 </div>
               </div>

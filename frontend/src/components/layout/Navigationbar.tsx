@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Home, MessageSquare, Bell, Shield, Menu, X } from 'lucide-react';
+import { Home, MessageSquare, Shield, Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 import { authService } from '../../services/auth';
 import type { UserRole } from '../../services/auth';
@@ -117,11 +117,6 @@ const NavigationBar: React.FC = () => {
 
           {/* Right side */}
           <div className="flex items-center space-x-4">
-            <button className="p-2 rounded-full text-gray-500 hover:bg-gray-100 relative">
-              <Bell className="h-6 w-6" />
-              <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
-            </button>
-
             <Link to="/private/profile" className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50">
               <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0D8ABC&color=fff`} alt="Avatar" className="h-8 w-8 rounded-full" />
               <div className="hidden sm:block">

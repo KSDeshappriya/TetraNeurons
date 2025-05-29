@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
-import { Save, X, MapPin, Clock, Phone, Users, AlertCircle } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Save, X, MapPin, Clock, Phone, Users, AlertCircle, Map, Edit3 } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { Button } from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import NavigationBar from '../../components/layout/Navigationbar';
 import Footer from '../../components/layout/Footer';
 import { addResource } from '../../services/emergency';
 
+// Fix Leaflet default marker icons
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
 const useLocation = () => ({
   search: window.location.search
 });
-
 
 interface FormData {
   disasterId: string;
@@ -23,6 +33,125 @@ interface FormData {
   contact: string;
   totalCapacity: string;
 }
+
+interface LocationPickerProps {
+  latitude: string;
+  longitude: string;
+  onLocationChange: (lat: number, lng: number) => void;
+}
+
+// Component to handle map clicks
+const LocationMarker: React.FC<{ 
+  position: [number, number] | null; 
+  onLocationSelect: (lat: number, lng: number) => void;
+}> = ({ position, onLocationSelect }) => {
+  useMapEvents({
+    click(e) {
+      onLocationSelect(e.latlng.lat, e.latlng.lng);
+    },
+  });
+
+  return position ? <Marker position={position} /> : null;
+};
+
+const LocationPicker: React.FC<LocationPickerProps> = ({ 
+  latitude, 
+  longitude, 
+  onLocationChange 
+}) => {
+  const [showMap, setShowMap] = useState(false);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([7.2906, 80.6337]); // Default to Sri Lanka
+  const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null);
+
+  // Update marker position when coordinates change
+  useEffect(() => {
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      setMarkerPosition([lat, lng]);
+      setMapCenter([lat, lng]);
+    } else {
+      setMarkerPosition(null);
+    }
+  }, [latitude, longitude]);
+
+  const handleLocationSelect = useCallback((lat: number, lng: number) => {
+    setMarkerPosition([lat, lng]);
+    onLocationChange(lat, lng);
+  }, [onLocationChange]);
+
+  const handleUseCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude: lat, longitude: lng } = position.coords;
+          handleLocationSelect(lat, lng);
+          setMapCenter([lat, lng]);
+        },
+        (error) => {
+          console.error('Error getting current location:', error);
+          alert('Unable to get your current location. Please select manually on the map or enter coordinates.');
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by this browser.');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowMap(!showMap)}
+          className="flex items-center"
+        >
+          <Map className="w-4 h-4 mr-2" />
+          {showMap ? 'Hide Map' : 'Show Map Picker'}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleUseCurrentLocation}
+          className="flex items-center"
+        >
+          <MapPin className="w-4 h-4 mr-2" />
+          Use Current Location
+        </Button>
+      </div>
+
+      {showMap && (
+        <div className="border border-gray-300 rounded-lg overflow-hidden">
+          <div className="bg-blue-50 px-4 py-2 border-b border-gray-200">
+            <p className="text-sm text-blue-800 flex items-center">
+              <Edit3 className="w-4 h-4 mr-2" />
+              Click on the map to select a location
+            </p>
+          </div>
+          <div style={{ height: '300px', width: '100%' }}>
+            <MapContainer
+              center={mapCenter}
+              zoom={13}
+              style={{ height: '100%', width: '100%' }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <LocationMarker 
+                position={markerPosition} 
+                onLocationSelect={handleLocationSelect}
+              />
+            </MapContainer>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ResourceAddingPage: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
@@ -43,11 +172,13 @@ const ResourceAddingPage: React.FC = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const disasterId = searchParams.get('id');
+  
   // Redirect if no disaster ID
   if (!disasterId) {
     window.history.back();
     return null;
   }
+
   const resourceTypes = [
     { value: 'shelter', label: 'Shelter', icon: '🏠', description: 'Emergency housing and accommodation' },
     { value: 'supply', label: 'Supply', icon: '📦', description: 'Food, water, and essential supplies' },
@@ -61,6 +192,21 @@ const ResourceAddingPage: React.FC = () => {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
+
+  const handleLocationChange = useCallback((lat: number, lng: number) => {
+    setFormData(prev => ({
+      ...prev,
+      latitude: lat.toFixed(6),
+      longitude: lng.toFixed(6)
+    }));
+    
+    // Clear location errors
+    setErrors(prev => ({
+      ...prev,
+      latitude: undefined,
+      longitude: undefined
+    }));
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<FormData> = {};
@@ -201,7 +347,7 @@ const ResourceAddingPage: React.FC = () => {
                             type="text"
                             value={formData.name}
                             onChange={(e) => handleInputChange('name', e.target.value)}
-                            className={` w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                               errors.name ? 'border-red-300' : 'border-gray-300'
                             }`}
                             placeholder="e.g., Downtown Emergency Shelter"
@@ -213,8 +359,6 @@ const ResourceAddingPage: React.FC = () => {
                             </p>
                           )}
                         </div>
-
-                       
 
                         <div className="lg:col-span-2">
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -245,6 +389,17 @@ const ResourceAddingPage: React.FC = () => {
                         <MapPin className="w-5 h-5 mr-2" />
                         Location Information
                       </h3>
+                      
+                      {/* Interactive Location Picker */}
+                      <div className="mb-6">
+                        <LocationPicker
+                          latitude={formData.latitude}
+                          longitude={formData.longitude}
+                          onLocationChange={handleLocationChange}
+                        />
+                      </div>
+
+                      {/* Manual Coordinate Input */}
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -257,7 +412,7 @@ const ResourceAddingPage: React.FC = () => {
                             className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                               errors.latitude ? 'border-red-300' : 'border-gray-300'
                             }`}
-                            placeholder="e.g., 37.7749"
+                            placeholder="e.g., 7.2906"
                           />
                           {errors.latitude && (
                             <p className="text-red-600 text-xs mt-1 flex items-center">
@@ -278,7 +433,7 @@ const ResourceAddingPage: React.FC = () => {
                             className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                               errors.longitude ? 'border-red-300' : 'border-gray-300'
                             }`}
-                            placeholder="e.g., -122.4194"
+                            placeholder="e.g., 80.6337"
                           />
                           {errors.longitude && (
                             <p className="text-red-600 text-xs mt-1 flex items-center">
@@ -289,7 +444,7 @@ const ResourceAddingPage: React.FC = () => {
                         </div>
                       </div>
                       <p className="text-xs text-gray-500 mt-2">
-                        💡 Tip: You can use online tools or GPS coordinates to find the exact latitude and longitude.
+                        💡 Use the map picker above, current location button, or manually enter coordinates
                       </p>
                     </div>
 
@@ -298,7 +453,7 @@ const ResourceAddingPage: React.FC = () => {
                       <h3 className="text-md font-medium text-gray-800 mb-4">Contact & Operational Details</h3>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2  items-center">
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                             <Clock className="w-4 h-4 mr-1" />
                             Operating Hours *
                           </label>
@@ -320,7 +475,7 @@ const ResourceAddingPage: React.FC = () => {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2  items-center">
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                             <Phone className="w-4 h-4 mr-1" />
                             Contact Information
                           </label>

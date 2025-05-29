@@ -15,6 +15,9 @@ import {
   getResourcesByDisaster, 
 } from '../../services/check_resource';
 import TaskList from '../../components/ui/TaskList';
+import L from 'leaflet';
+import UserLocationMarker from '../../components/ui/UserLocationMarker';
+import Card from '../../components/ui/Card';
 
 interface ResourceItem {
   id: string;
@@ -374,6 +377,63 @@ const FRResources: React.FC = () => {
                   </div>
                 </div>
               )}
+              {/* Location Map */}
+              <div className="py-2">
+                <Card>
+                  <div className="p-4 sm:p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      <MapPin className="w-5 h-5 inline mr-2" />
+                      Emergency Location
+                    </h3>
+                    <div className="h-64 sm:h-80 rounded-lg overflow-hidden">
+                      <MapContainer
+                        center={[
+                          disasterData?.latitude ?? 0, 
+                          disasterData?.longitude ?? 0
+                        ]}
+                        zoom={15}
+                        style={{ height: '100%', width: '100%' }}
+                      >
+                        <TileLayer
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        />
+                        <TileLayer
+                          url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
+                          attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                          opacity={0.6}
+                        />
+                        
+                        {/* Emergency Location Marker */}
+                        {disasterData?.latitude && disasterData?.longitude && (
+                          <Marker
+                            position={[disasterData.latitude, disasterData.longitude]}
+                            icon={L.divIcon({
+                              className: 'custom-div-icon',
+                              html: `<div style="background-color: #EF4444; width: 40px; height: 40px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); animation: pulse 2s infinite;"></div>`,
+                              iconSize: [40, 40],
+                              iconAnchor: [12, 12]
+                            })}
+                          >
+                            <Popup>
+                              <div className="text-sm">
+                                <h4 className="font-semibold text-red-600 capitalize">
+                                  {disasterData?.emergency_type} Emergency
+                                </h4>
+                                <p>Urgency: {disasterData?.urgency_level}</p>
+                                <p>People Affected: {disasterData?.people_count}</p>
+                              </div>
+                            </Popup>
+                          </Marker>
+                        )}
+                        
+                        {/* User Location Component */}
+                        <UserLocationMarker />
+                      </MapContainer>
+                    </div>
+                  </div>
+                </Card>
+              </div>
               <TaskList disasterId={disasterId} role='fr' />
             </div>
           ) : (

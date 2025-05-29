@@ -2,6 +2,8 @@
 
 TetraNeurons is a disaster management application with a React frontend, FastAPI backend, Firebase integration,third-party API & MCP Server support.
 
+<img src="./screenshots/s3.png" width="800" alt="Website"/>
+
 ---
 
 ## Project Setup
@@ -151,7 +153,7 @@ TOKEN=your_jwt_token_here
 ```bash
 mcp install server.py
 ```
-<img src="./screenshots/mcp2.png" width="600" alt="MCP SERVER installation"/>
+<img src="./screenshots/mcp2.png" width="600" alt="MCP SERVER installation"/><br>
 <img src="./screenshots/mcp1.png" width="600" alt="MCP SERVER IN ACTION"/>
 
 

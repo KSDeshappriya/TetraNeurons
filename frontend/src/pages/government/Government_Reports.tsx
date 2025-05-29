@@ -443,7 +443,7 @@ const GovResources: React.FC = () => {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-500">AI Processing Time</label>
-                        <p className="text-gray-900">{disasterData?.ai_processing_time}ms</p>
+                        <p className="text-gray-900">{disasterData?.ai_processing_time}s</p>
                         <button
                           className="text-blue-600 text-sm underline mt-1"
                           onClick={() => window.open(`/gov/ai_matrix?id=${disasterData?.disaster_id}`, '_blank')}
