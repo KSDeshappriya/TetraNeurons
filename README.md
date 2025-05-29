@@ -166,9 +166,9 @@ Also `model/` directory contains files used to train and run models for disaster
 * `yolov8n.pt`: YOLOv8 Nano version weights 
 * `yolov9c.pt`: YOLOv9 Compact version weights
 
-## Assumptions and Architecture Decisions
+## Assumptions 
 
-* **Email Domain Trust**: Certain roles (e.g. government officials and first responders) must use email domains listed in `trusted_domain.yaml`. Example:
+* **Email Domain Trust**: In our role-based auth Certain roles (e.g. government officials and first responders) must use email domains listed in `trusted_domain.yaml` to signup. Example:
 
 ```yaml
 :gov:
@@ -180,7 +180,7 @@ first_responders:
   - police.org
 ```
 
-Volunteers and general users are not restricted by domain.
+Volunteers and general users are not restricted by domain.so we assume Each government agency or first responder department must issue an official email to its personnel.
 
 * **Disaster Location Precision**: We assume each disaster affects an approximate area of **20 km²**, determined using **geohash level 4** for location precision.
 
@@ -199,11 +199,11 @@ Volunteers and general users are not restricted by domain.
 
   * We **do not** use VLMs like CLIP for classification due to high computational cost and low control over label specificity.
   * Instead, a **custom CNN model** is used to classify disaster types and count people—this is faster and cheaper after training.
-  * Additionally, we leverage **Gemini Flash 2 API**, a multimodal model, for more robust image understanding.
+  * Additionally, we leverage **Gemini Flash 2 API**, a multimodal model,which also a VLM capable model for more robust image understanding.
 
 * **Weather Data**:
 
-  * We use the **OpenWeather API** for precipitation data relevant to disasters.
+  * We use the **OpenWeather API** for Map precipitation data filter relevant to disasters.
   * Although the API allows only **60 calls per minute**, this is considered acceptable under expected usage.
 
 ---
