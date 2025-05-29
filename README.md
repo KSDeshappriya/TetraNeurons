@@ -102,7 +102,7 @@ Create a `.env` file in the `backend/` directory:
 
 ```
 JWT_SECRET_KEY=asdfghjklsdfghjcvgbn
-GOOGLE_API_KEY=asdfghjklsdfghjcvgbn
+GOOGLE_API_KEY=asdfghjklsdfghjcvgbn  # Don't mind the variable name, it's just the Gemini API key
 ```
 
 ### Firebase Service Account
