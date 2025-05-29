@@ -260,27 +260,26 @@ Final Coordination → Master coordinator reviews all agent outputs → Decision
 
 #### Process Flow:
 ```
-Government Approval → Disaster Lookup → Resource Discovery → 
-Task Generation → Responder Assignment → Task Dispatch
+Government Approval → Disaster Lookup →  Task Generation → Responder Assignment → Task Dispatch
 ```
 
 ---
 
 ### Workflow 3: Additional Help Requests
 **Triggered**: When other people in the same disaster area request help
-**Resource Finder**: Locates nearby hospitals, shelters, supplies
 **Purpose**: Add new tasks for existing disaster without full analysis
 
 #### Components:
 - **Help Request Processor**: Validates new help requests
 - **Existing Disaster Linker**: Links request to ongoing disaster
+- **Resource Finder**: Locates nearby hospitals, shelters, supplies
 - **Quick Task Generator**: Creates tasks based on existing disaster context (Gemini 2.0)
 - **Task Adder**: Adds new tasks to existing response effort
 
 #### Process Flow:
 ```
-Help Request → Link to Existing Disaster → Quick Task Generation → 
-Add to Task Queue → Responder Assignment
+Help Request → Link to Existing Disaster → Resource Discovery → 
+Quick Task Generation → Add to Task Queue → Responder Assignment
 ```
 
 ## 🔗 Workflow Integration
