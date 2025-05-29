@@ -127,7 +127,7 @@ const GovResources: React.FC = () => {
     resourceId: '',
     resourceName: ''
   });
-
+  const [weatherLayerType, setWeatherLayerType] = useState('precipitation_new');
   // Fetch disaster data and nearby responders
   useEffect(() => {
     fetchALLDisasterData(disasterId, setDisasterData, setEmergencyContacts, setError, setLoading);
@@ -319,6 +319,22 @@ const GovResources: React.FC = () => {
               );
             })}
           </div>
+          <div className="flex justify-center items-center gap-3 mb-6 text-sm text-gray-800">
+  <label htmlFor="map-layer" className="font-medium">
+    Map Layer:
+  </label>
+  <select
+    id="map-layer"
+    value={weatherLayerType}
+    onChange={e => setWeatherLayerType(e.target.value)}
+    className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+  >
+    <option value="precipitation_new">🌧️ Precipitation – Floods, Storms</option>
+    <option value="wind_new">💨 Wind – Storms, Fire Spread</option>
+    <option value="temp_new">🌡️ Temperature – Heatwaves, Wildfires</option>
+    <option value="clouds_new">☁️ Clouds – General Weather</option>
+  </select>
+</div>
 
           {/* Map */}
           {((!['insights'].includes(selectedCategory) && filteredResources.length > 0) || selectedCategory === 'contacts') && (
@@ -341,10 +357,10 @@ const GovResources: React.FC = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <TileLayer
-                                  url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
-                                  attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
-                                  opacity={0.6}
-                                />
+                  url={`https://tile.openweathermap.org/map/${weatherLayerType}/{z}/{x}/{y}.png?appid=${apiKey}`}
+                  attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                  opacity={0.6}
+                />
                 {selectedCategory === 'contacts'
                   ? emergencyContacts.map(contact => (
                     <Marker key={contact.uid} position={[contact.latitude, contact.longitude]}>

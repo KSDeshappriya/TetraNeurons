@@ -69,9 +69,10 @@ const UserResources: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [disasterData, setDisasterData] = useState<DisasterData | null>(null);
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
+  const [weatherLayerType, setWeatherLayerType] = useState('precipitation_new');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
+  const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
 
   // Disaster data
   useEffect(() => {
@@ -238,6 +239,25 @@ const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
               );
             })}
           </div>
+          
+          <div className="flex justify-center items-center gap-3 mb-6 text-sm text-gray-800">
+  <label htmlFor="map-layer" className="font-medium">
+    Map Layer:
+  </label>
+  <select
+    id="map-layer"
+    value={weatherLayerType}
+    onChange={e => setWeatherLayerType(e.target.value)}
+    className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+  >
+    <option value="precipitation_new">🌧️ Precipitation – Floods, Storms</option>
+    <option value="wind_new">💨 Wind – Storms, Fire Spread</option>
+    <option value="temp_new">🌡️ Temperature – Heatwaves, Wildfires</option>
+    <option value="clouds_new">☁️ Clouds – General Weather</option>
+  </select>
+</div>
+
+
 
           {/* Map */}
           {((!['insights'].includes(selectedCategory) && filteredResources.length > 0) || selectedCategory === 'contacts') && (
@@ -261,10 +281,11 @@ const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
                 />
 
                 <TileLayer
-                  url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
+                  url={`https://tile.openweathermap.org/map/${weatherLayerType}/{z}/{x}/{y}.png?appid=${apiKey}`}
                   attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
                   opacity={0.6}
                 />
+
                 {selectedCategory === 'contacts'
                   ? emergencyContacts.map(contact => (
                     <Marker key={contact.uid} position={[contact.latitude, contact.longitude]}>
@@ -377,63 +398,63 @@ const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
                   </div>
                 </div>
               )}
-{/* Location Map */}
-<div className="py-2">
-  <Card>
-    <div className="p-4 sm:p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        <MapPin className="w-5 h-5 inline mr-2" />
-        Emergency Location
-      </h3>
-      <div className="h-64 sm:h-80 rounded-lg overflow-hidden">
-        <MapContainer
-          center={[
-            disasterData?.latitude ?? 0, 
-            disasterData?.longitude ?? 0
-          ]}
-          zoom={15}
-          style={{ height: '100%', width: '100%' }}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          <TileLayer
-            url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
-            attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
-            opacity={0.6}
-          />
-          
-          {/* Emergency Location Marker */}
-          {disasterData?.latitude && disasterData?.longitude && (
-            <Marker
-              position={[disasterData.latitude, disasterData.longitude]}
-              icon={L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="background-color: #EF4444; width: 40px; height: 40px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); animation: pulse 2s infinite;"></div>`,
-                iconSize: [40, 40],
-                iconAnchor: [12, 12]
-              })}
-            >
-              <Popup>
-                <div className="text-sm">
-                  <h4 className="font-semibold text-red-600 capitalize">
-                    {disasterData?.emergency_type} Emergency
-                  </h4>
-                  <p>Urgency: {disasterData?.urgency_level}</p>
-                  <p>People Affected: {disasterData?.people_count}</p>
-                </div>
-              </Popup>
-            </Marker>
-          )}
-          
-          {/* User Location Component */}
-          <UserLocationMarker />
-        </MapContainer>
-      </div>
-    </div>
-  </Card>
-</div>
+              {/* Location Map */}
+              <div className="py-2">
+                <Card>
+                  <div className="p-4 sm:p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      <MapPin className="w-5 h-5 inline mr-2" />
+                      Emergency Location
+                    </h3>
+                    <div className="h-64 sm:h-80 rounded-lg overflow-hidden">
+                      <MapContainer
+                        center={[
+                          disasterData?.latitude ?? 0,
+                          disasterData?.longitude ?? 0
+                        ]}
+                        zoom={15}
+                        style={{ height: '100%', width: '100%' }}
+                      >
+                        <TileLayer
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        />
+                        <TileLayer
+                          url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`}
+                          attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                          opacity={0.6}
+                        />
+
+                        {/* Emergency Location Marker */}
+                        {disasterData?.latitude && disasterData?.longitude && (
+                          <Marker
+                            position={[disasterData.latitude, disasterData.longitude]}
+                            icon={L.divIcon({
+                              className: 'custom-div-icon',
+                              html: `<div style="background-color: #EF4444; width: 40px; height: 40px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); animation: pulse 2s infinite;"></div>`,
+                              iconSize: [40, 40],
+                              iconAnchor: [12, 12]
+                            })}
+                          >
+                            <Popup>
+                              <div className="text-sm">
+                                <h4 className="font-semibold text-red-600 capitalize">
+                                  {disasterData?.emergency_type} Emergency
+                                </h4>
+                                <p>Urgency: {disasterData?.urgency_level}</p>
+                                <p>People Affected: {disasterData?.people_count}</p>
+                              </div>
+                            </Popup>
+                          </Marker>
+                        )}
+
+                        {/* User Location Component */}
+                        <UserLocationMarker />
+                      </MapContainer>
+                    </div>
+                  </div>
+                </Card>
+              </div>
 
               <CitizenSurvivalGuideAccordion disasterData={disasterData} />
               <EmergencyReportForm
