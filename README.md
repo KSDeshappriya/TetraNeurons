@@ -190,10 +190,15 @@ Volunteers and general users are not restricted by domain.so we assume Each gove
 
   * **Small urgency** can be managed by volunteers.
   * **Medium-scale urgency*** are handled primarily by first responders.
-  * **Large-scale urgency*** require combined efforts of government bodies and volunteers.
+  * **Large-scale complex urgency*** require combined efforts of government bodies and volunteers.
   * This structure ensures volunteer safety while enabling scalable response.
 
 * **Resource Assumption**: All aid resources (e.g., shelters, medication stations) are assumed to be **static** and not mobile.
+
+* **Voice Input**: Voice input is not accepted for reporting disasters due to:
+  * **Environmental noise** commonly present in disaster situations can interfere with voice recognition accuracy.
+  * **Language or accent barriers** may prevent accurate interpretation of spoken reports.
+  * Individuals may be in **distress or panic**, which can affect speech clarity and coherence.
 
 * **Image Analysis Strategy**:
 
@@ -215,7 +220,7 @@ Volunteers and general users are not restricted by domain.so we assume Each gove
 **Purpose**: Create government and citizen reports, predict future impact, validate request authenticity
 
 #### Multiagent Architecture:
-**3 AI Agents (Independent Decision Makers):**
+**3 AI Agents:**
 - **Computer Vision AI Agent**: Analyzes emergency photos using CNN + YOLO models
 - **Government Analysis AI Agent**: Creates official response reports using Gemini AI
 - **Citizen Survival AI Agent**: Generates public safety instructions using Gemini AI
@@ -301,4 +306,5 @@ Workflow 3: Additional Help Requests → More Tasks → Extended Response
 
 ## License
 
-MIT License
+[MIT License](LICENSE)
+
