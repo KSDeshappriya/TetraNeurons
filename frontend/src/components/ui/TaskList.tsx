@@ -110,7 +110,7 @@ export default function TaskList({ disasterId, role }: TaskListProps) {
             <div className="grid md:grid-cols-2 gap-4 text-gray-700">
               <p><strong>Emergency:</strong> {task.emergency_type}</p>
               <p><strong>People Count:</strong> {task.people_count}</p>
-              <p><strong>Urgency:</strong> {task.urgency_level}</p>
+              <p><strong>User Defined Urgency:</strong> {task.urgency_level}</p>
               <p><strong>Roles:</strong> {task.roles.join(', ')}</p>
               <p>
                 <strong>Location:</strong>{' '}

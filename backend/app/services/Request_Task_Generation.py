@@ -6,6 +6,7 @@ import google.generativeai as genai
 import os
 import math
 import time
+import json
 
 # Configure Gemini API
 genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
@@ -70,7 +71,7 @@ def fetch_nearby_resources(state: EmergencyRequestState) -> EmergencyRequestStat
         print(f"Error fetching resources: {e}")
         return {**state, "nearby_resources": []}
 
-# Tool: Generate task using AI
+# Tool: Generate task using AI with intelligent role assignment
 def generate_emergency_task(state: EmergencyRequestState) -> EmergencyRequestState:
     help_needed = state['help']
     urgency = state['urgency_type']
@@ -79,50 +80,109 @@ def generate_emergency_task(state: EmergencyRequestState) -> EmergencyRequestSta
     longitude = state['longitude']
     nearby_resources = state['nearby_resources']
     
-    # Convert urgency type
+    # Convert urgency type for consistency
     if urgency == "moderate":
         urgency = "medium"
-    
-    # Determine roles based on urgency
-    if urgency == "high":
-        roles = ["vol", "fr"]
-    elif urgency == "medium":
-        roles = ["fr"]
-    else:
-        roles = ["vol"]
     
     # Prepare resource information for AI
     resource_info = ""
     if nearby_resources:
-        resource_info = "Nearby available resources:\n"
+        resource_info = "Available nearby resources:\n"
         for resource in nearby_resources[:3]:  # Top 3 closest
             resource_info += f"- {resource.get('name', 'Unknown')}: {resource.get('type', 'general')} at ({resource.get('latitude')}, {resource.get('longitude')})\n"
             resource_info += f"  Description: {resource.get('description', 'No description')}\n"
             resource_info += f"  Contact: {resource.get('contact', 'No contact')}\n"
-            resource_info += f"  Status: {resource.get('status', 'unknown')}\n\n"
+            resource_info += f"  Status: {resource.get('status', 'unknown')}\n"
+    else:
+        resource_info = "No nearby resources identified."
     
+    # Enhanced AI prompt for intelligent role assignment
     prompt = f"""
-        An emergency request has been received that requires first responder and volunteer action. Generate a short, direct task (maximum 2 sentences) for emergency responders and volunteers to address this situation.
+    You are an emergency response coordinator AI. A citizen has submitted an emergency request that requires immediate response. Analyze the situation and determine both the appropriate response task AND which responder roles are needed.
 
-        Emergency Type: {emergency_type}
-        Help Needed: {help_needed}
-        Urgency: {urgency}
-        Location: ({latitude}, {longitude})
+    EMERGENCY REQUEST DETAILS:
+    Emergency Type: {emergency_type}
+    Help Needed: {help_needed}
+    Urgency Level: {urgency}
+    Location: ({latitude}, {longitude})
+    
+    {resource_info}
 
-        {resource_info}
+    AVAILABLE RESPONDER ROLES - CHOOSE CAREFULLY:
+    - "vol" (Volunteers ONLY): Community volunteers for basic needs, logistics, welfare checks
+    - "fr" (First Responders ONLY): Professional emergency responders for medical/rescue/safety
+    - "both" (BOTH Volunteers AND First Responders): For complex situations requiring both professional expertise AND community support
 
-        Generate a task that tells responders/volunteers what action to take to help this person. If there are suitable nearby resources, include instructions to utilize or coordinate with them.
-        Focus on what the responders should DO, not what the person in need should do.
+    CRITICAL ROLE ASSIGNMENT RULES:
+    1. Use "both" when:
+       - Mass casualty events or multiple people affected severely
+       - Complex disasters requiring professional response AND community coordination
+       - Situations needing immediate professional help PLUS ongoing volunteer support
+       - Large-scale evacuations or shelter operations
+       - Multiple simultaneous emergency needs
 
-        Example: "Deploy rescue team to assist person needing medical help at coordinates (6.9271, 79.8612). Coordinate with nearby Downtown Medical Center for immediate transport."
-        """
+    2. Use "fr" only when:
+       - Medical emergencies, injuries, life-threatening situations
+       - Technical rescues, fires, hazardous materials
+       - Police/security needed
+       - Professional expertise is primary requirement
+
+    3. Use "vol" only when:
+       - Basic needs: food, water, shelter, supplies
+       - Welfare checks, social support
+       - Non-emergency logistics and coordination
+       - Simple community assistance
+
+    4. INAPPROPRIATE REQUESTS:
+       - If Help Needed request seems fake, inappropriate, or non-emergency joke, assign "vol" with task to "Assess situation appropriately and provide guidance on proper emergency procedures"
+
+    TASK: Generate a JSON response with the following structure:
+    {{
+        "description": "1-2 sentence direct task telling responders what action to take (maximum 2 sentences)",
+        "roles": "exactly one value: 'vol', 'fr', or 'both'",
+        "reasoning": "Brief explanation of why this specific role assignment is needed",
+        "resource_utilization": "How to use nearby resources if applicable, or 'none' if not needed"
+    }}
+
+    TASK GENERATION RULES:
+    - Focus on what responders should DO, not what the person should do
+    - Be specific and actionable
+    - Include coordinate utilization for deployment
+    - Reference nearby resources when they can assist
+    - Prioritize life-saving actions
+    - For inappropriate requests, create professional guidance task
+
+    REMEMBER: You must choose exactly ONE role value: "vol", "fr", or "both" - not an array!
+
+    Respond ONLY with valid JSON.
+    """
     
     try:
         response = model.generate_content(prompt)
-        ai_generated_description = response.text.strip()
+        ai_response = response.text.strip()
+        
+        # Clean up the response to extract JSON
+        if ai_response.startswith('```json'):
+            ai_response = ai_response.replace('```json', '').replace('```', '').strip()
+        elif ai_response.startswith('```'):
+            ai_response = ai_response.replace('```', '').strip()
+        
+        # Parse AI response
+        ai_data = json.loads(ai_response)
+        
+        ai_generated_description = ai_data.get("description", "").strip()
+        ai_selected_role = ai_data.get("roles", "vol")
+        
+        # Handle role assignment - convert "both" to array format
+        if ai_selected_role == "both":
+            valid_roles = ["vol", "fr"]
+        elif ai_selected_role in ["vol", "fr"]:
+            valid_roles = [ai_selected_role]
+        else:
+            valid_roles = ["vol"]  # Default fallback
         
         if not ai_generated_description:
-            raise ValueError("Empty response from Gemini")
+            raise ValueError("Empty description from Gemini")
         
         task_id = str(uuid.uuid4())
         task = {
@@ -130,29 +190,103 @@ def generate_emergency_task(state: EmergencyRequestState) -> EmergencyRequestSta
             "description": ai_generated_description,
             "status": "pending",
             "complete_by": "",
-            "roles": roles,
+            "roles": valid_roles,
             "emergency_type": emergency_type,
             "urgency_level": urgency,
             "latitude": latitude,
             "longitude": longitude,
             "help_needed": help_needed,
-            "user_id": state['user_id']
+            "user_id": state['user_id'],
+            "ai_reasoning": ai_data.get("reasoning", "AI-determined role assignment"),
+            "resource_utilization": ai_data.get("resource_utilization", "none")
         }
         
         return {**state, "generated_task": task}
         
     except Exception as e:
-        print(f"Error generating task: {e}")
-        # Fallback task
-        fallback_description = f"Assist person needing {help_needed} at location ({latitude}, {longitude})."
-        if nearby_resources:
-            closest_resource = nearby_resources[0]
-            fallback_description += f" Direct to {closest_resource.get('name', 'nearby resource')} for assistance."
+        print(f"Error generating AI task: {e}")
+        
+        # Enhanced fallback with simplified AI prompt
+        try:
+            fallback_prompt = f"""
+            Emergency: {help_needed}
+            Type: {emergency_type}, Urgency: {urgency}
+            
+            JSON response - choose role carefully:
+            {{
+                "description": "Task for responding to {help_needed} at ({latitude}, {longitude})",
+                "roles": "choose exactly one: 'vol', 'fr', or 'both' based on situation complexity and needs"
+            }}
+            """
+            
+            fallback_response = model.generate_content(fallback_prompt)
+            fallback_text = fallback_response.text.strip().replace('```json', '').replace('```', '')
+            fallback_data = json.loads(fallback_text)
+            
+            role_choice = fallback_data.get("roles", "vol")
+            if role_choice == "both":
+                roles = ["vol", "fr"]
+            elif role_choice in ["vol", "fr"]:
+                roles = [role_choice]
+            else:
+                roles = ["vol"]
+            
+            description = fallback_data.get("description", f"Assist person needing {help_needed} at location ({latitude}, {longitude}).")
+            
+        except:
+            # Final intelligent rule-based fallback
+            description = f"Assist person needing {help_needed} at location ({latitude}, {longitude})."
+            
+            # Enhanced intelligent role assignment
+            help_lower = help_needed.lower()
+            emergency_lower = emergency_type.lower()
+            
+            # Check for inappropriate or joke requests
+            inappropriate_keywords = ['joke', 'funny', 'lol', 'haha', 'prank', 'fake', 'test123', 'random']
+            is_inappropriate = any(keyword in help_lower for keyword in inappropriate_keywords)
+            
+            if is_inappropriate:
+                description = "Assess situation appropriately and provide guidance on proper emergency procedures. Educate on the importance of using emergency services responsibly."
+                roles = ["vol"]
+            else:
+                # Check for complex situations needing both
+                mass_casualty = any(keyword in help_lower for keyword in [
+                    'many people', 'multiple people', 'crowd', 'group', 'families', 'everyone', 'lots of'
+                ])
+                
+                complex_emergency = any(keyword in emergency_lower for keyword in [
+                    'major', 'widespread', 'multiple', 'mass', 'large scale'
+                ])
+                
+                # Professional responders needed
+                needs_fr = any(keyword in help_lower for keyword in [
+                    'medical', 'injury', 'hurt', 'bleeding', 'unconscious', 'chest pain', 
+                    'breathing', 'heart', 'ambulance', 'doctor', 'hospital', 'rescue',
+                    'trapped', 'fire', 'smoke', 'gas', 'hazard', 'emergency', 'dying', 'dead'
+                ])
+                
+                # High urgency situations
+                high_urgency = urgency in ['high', 'urgent'] or any(keyword in help_lower for keyword in [
+                    'urgent', 'critical', 'immediate', 'emergency', 'asap', 'quickly', 'now'
+                ])
+                
+                # Determine role assignment
+                if (mass_casualty or complex_emergency) and (needs_fr or high_urgency):
+                    roles = ["vol", "fr"]  # Both needed for complex situations
+                elif needs_fr or high_urgency:
+                    roles = ["fr"]  # Professional response needed
+                else:
+                    roles = ["vol"]  # Basic volunteer support sufficient
+            
+            # Add resource coordination if available
+            if nearby_resources and not is_inappropriate:
+                closest_resource = nearby_resources[0]
+                description += f" Coordinate with {closest_resource.get('name', 'nearby resource')} for assistance."
         
         task_id = str(uuid.uuid4())
         task = {
             "task_id": task_id,
-            "description": fallback_description,
+            "description": description,
             "status": "pending",
             "complete_by": "",
             "roles": roles,
@@ -161,7 +295,8 @@ def generate_emergency_task(state: EmergencyRequestState) -> EmergencyRequestSta
             "latitude": latitude,
             "longitude": longitude,
             "help_needed": help_needed,
-            "user_id": state['user_id']
+            "user_id": state['user_id'],
+            "ai_reasoning": "Intelligent fallback assignment based on context analysis"
         }
         
         return {**state, "generated_task": task}
@@ -184,7 +319,9 @@ def save_user_request(state: EmergencyRequestState) -> EmergencyRequestState:
         "task_id": state['generated_task']['task_id'],
         "status": "submitted",
         "feedback": None,
-        "timestamp": int(time.time() * 1000)
+        "timestamp": int(time.time() * 1000),
+        "assigned_roles": state['generated_task']['roles'],
+        "ai_reasoning": state['generated_task'].get('ai_reasoning', 'No reasoning provided')
     }
     
     # Save to /userrequest/{user_id}/
