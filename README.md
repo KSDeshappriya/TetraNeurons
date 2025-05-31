@@ -55,7 +55,7 @@ This ensures that only users with approved domains can register as `gov` or `fir
 
 ### Firebase Configuration
 
-In `frontend/arc/services/firebase.ts`, update the `firebaseConfig` object with your Firebase credentials:
+In `frontend/src/services/firebase.ts`, update the `firebaseConfig` object with your Firebase credentials:
 
 ```ts
 const firebaseConfig = {
