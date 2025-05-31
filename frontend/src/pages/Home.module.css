@@ -1,0 +1,55 @@
+/* Home page background styles with proper opacity and transparency */
+
+.headerBackground {
+  background-image: 
+    linear-gradient(
+      rgba(30, 58, 138, 0.75), 
+      rgba(30, 58, 138, 0.65)
+    ), 
+    url('/images/bg1.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.heroBackground {
+  background-image: 
+    linear-gradient(
+      rgba(30, 58, 138, 0.6), 
+      rgba(59, 130, 246, 0.4)
+    ), 
+    url('/images/bg2.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.featuresBackground {
+  background-image: 
+    linear-gradient(
+      rgba(15, 23, 42, 0.85), 
+      rgba(30, 58, 138, 0.75)
+    ), 
+    url('/images/bg3.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* Additional overlay for better text readability */
+.overlay {
+  backdrop-filter: blur(1px);
+}
+
+/* Responsive background adjustments */
+@media (max-width: 768px) {
+  .headerBackground,
+  .heroBackground,
+  .featuresBackground {
+    background-attachment: scroll;
+    background-size: cover;
+  }
+}
