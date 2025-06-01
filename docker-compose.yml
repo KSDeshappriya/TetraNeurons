@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # Frontend service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - tetra-network
+    volumes:
+      - ./frontend:/app/src:ro
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=http://backend:8000
+    restart: unless-stopped
+
+  # Backend service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mcp-server
+    networks:
+      - tetra-network
+    volumes:
+      - ./backend:/app:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MCP_SERVER_URL=http://mcp-server:5000
+    restart: unless-stopped
+
+  # MCP Server service
+  mcp-server:
+    build:
+      context: ./MCP\ Server
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    networks:
+      - tetra-network
+    volumes:
+      - ./MCP\ Server:/app:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+networks:
+  tetra-network:
+    driver: bridge
