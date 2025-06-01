@@ -48,7 +48,7 @@ services:
     networks:
       - tetra-network
     volumes:
-      - ./MCP\ Server:/app:ro
+      - ./MCP_Server:/app:ro
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
