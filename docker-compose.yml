@@ -40,7 +40,7 @@ services:
   # MCP Server service
   mcp-server:
     build:
-      context: ./MCP\ Server
+      context: ./MCP_Server
       dockerfile: Dockerfile
     ports:
       - "5000:5000"
