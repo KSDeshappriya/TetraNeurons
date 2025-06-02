@@ -5,6 +5,46 @@ import NavigationBar from '../../components/layout/Navigationbar';
 import Footer from '../../components/layout/Footer';
 import LogsSection from '../../components/ui/LogsSection';
 
+// Type definitions
+interface EmergencyContext {
+  emergency_type?: string;
+  urgency_level?: string;
+  people_count?: number;
+  latitude?: number;
+  longitude?: number;
+}
+
+interface ComponentsSummary {
+  total_components: number;
+  completed_components: number;
+  failed_components: number;
+  success_rate: number;
+}
+
+interface MatrixData {
+  disaster_id?: string;
+  emergency_context?: EmergencyContext;
+  final_status?: string;
+  logs?: any[];
+  processing_end_time?: number;
+  processing_start_time?: number;
+  total_processing_time?: number;
+  components_status?: Record<string, string>;
+  components_summary?: ComponentsSummary;
+}
+
+interface Task {
+  first_Task: boolean;
+  is_fallback: boolean;
+  timestamp: number;
+  description: string;
+}
+
+interface TaskData {
+  firstTask: Task | null;
+  lastTask: Task | null;
+}
+
 const useLocation = () => ({
   search: window.location.search
 });
@@ -13,9 +53,9 @@ const AIMatrixPage = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const disasterId = searchParams.get('id');
-  const [matrixData, setMatrixData] = useState(null);
-  const [loading, setLoading] = useState(true);
-   const [taskData, setTaskData] = useState({
+  const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [taskData, setTaskData] = useState<TaskData>({
     firstTask: null,
     lastTask: null
   });
@@ -30,17 +70,17 @@ const AIMatrixPage = () => {
       try {
         const snapshot = await get(tasksRef);
         if (snapshot.exists()) {
-          const tasks = snapshot.val();
+          const tasks = snapshot.val() as Record<string, Task>;
           
           // Find first task (first_Task: true)
-          const firstTask = Object.values(tasks).find(task => task.first_Task === true);
+          const firstTask = Object.values(tasks).find((task: Task) => task.first_Task === true) || null;
           
           // Find last task (most recent timestamp with first_Task: false)
           const nonFirstTasks = Object.values(tasks)
-            .filter(task => task.first_Task === false)
-            .sort((a, b) => b.timestamp - a.timestamp);
+            .filter((task: Task) => task.first_Task === false)
+            .sort((a: Task, b: Task) => b.timestamp - a.timestamp);
           
-          const lastTask = nonFirstTasks[0];
+          const lastTask = nonFirstTasks[0] || null;
           
           setTaskData({
             firstTask,
@@ -62,14 +102,14 @@ const AIMatrixPage = () => {
     get(matrixRef)
       .then((snapshot) => {
         if (snapshot.exists()) {
-          setMatrixData(snapshot.val());
+          setMatrixData(snapshot.val() as MatrixData);
         } else {
           console.warn('No data found for disasterId:', disasterId);
         }
         setLoading(false);
       })
       .catch((error) => {
-        console.error('Error fetching AI matrix:', error);
+        console.error('Error fetching Ai Metrics:', error);
         setLoading(false);
       });
   }, [disasterId]);
@@ -78,8 +118,8 @@ const AIMatrixPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading AI Matrix Report...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600 mx-auto mb-6"></div>
+          <p className="text-lg text-gray-600 font-medium">Loading Ai Metrics Report...</p>
         </div>
       </div>
     );
@@ -88,10 +128,10 @@ const AIMatrixPage = () => {
   if (!matrixData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <div className="text-red-500 text-5xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Data Found</h2>
-          <p className="text-gray-600">Unable to find AI Matrix data for the requested disaster ID.</p>
+        <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-10 text-center">
+          <div className="text-red-500 text-6xl mb-6">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Data Found</h2>
+          <p className="text-gray-600 text-lg">Unable to find Ai Metrics data for the requested disaster ID.</p>
         </div>
       </div>
     );
@@ -100,14 +140,13 @@ const AIMatrixPage = () => {
   const {
     disaster_id,
     emergency_context,
-    final_status,
     logs,
     processing_end_time,
     processing_start_time,
     total_processing_time,
   } = matrixData;
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string | undefined): string => {
     switch (status?.toLowerCase()) {
       case 'completed':
       case 'success':
@@ -125,7 +164,7 @@ const AIMatrixPage = () => {
     }
   };
 
-  const getUrgencyColor = (urgency) => {
+  const getUrgencyColor = (urgency: string | undefined): string => {
     switch (urgency?.toLowerCase()) {
       case 'high':
       case 'critical':
@@ -140,7 +179,7 @@ const AIMatrixPage = () => {
   };
 
   // Format timestamp - your data is already in Unix timestamp format
-  const formatTimestamp = (timestamp) => {
+  const formatTimestamp = (timestamp: number | undefined): string => {
     if (!timestamp) return 'Unknown';
     return new Date(timestamp * 1000).toLocaleString();
   };
@@ -148,78 +187,83 @@ const AIMatrixPage = () => {
   return (
     <>
       <NavigationBar />
-      <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">AI Matrix Report</h1>
-                <p className="text-gray-600 mt-1">Disaster ID: {disaster_id || disasterId}</p>
-              </div>
-              
+      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto space-y-8">
+          
+          {/* Header Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">Ai Metrics Report</h1>
+              <p className="text-xl text-gray-600">Disaster ID: <span className="font-semibold text-gray-800">{disaster_id || disasterId}</span></p>
             </div>
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Processing Information */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <span className="text-green-500 mr-2">⚡</span>
-                Processing Details
-              </h2>
-              <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:justify-between">
-                  <span className="text-gray-600 font-medium">Start Time:</span>
-                  <span className="text-gray-900 text-sm">{formatTimestamp(processing_start_time)}</span>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            
+            {/* Processing Information Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4">
+                  <span className="text-green-600 text-2xl">⚡</span>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between">
-                  <span className="text-gray-600 font-medium">End Time:</span>
-                  <span className="text-gray-900 text-sm">{formatTimestamp(processing_end_time)}</span>
+                <h2 className="text-2xl font-bold text-gray-900">Processing Details</h2>
+              </div>
+              
+              <div className="space-y-6">
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-gray-600 font-medium text-lg">Start Time</span>
+                  <span className="text-gray-900 font-semibold">{formatTimestamp(processing_start_time)}</span>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between">
-                  <span className="text-gray-600 font-medium">Total Duration:</span>
-                  <span className="text-gray-900 font-semibold">
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-gray-600 font-medium text-lg">End Time</span>
+                  <span className="text-gray-900 font-semibold">{formatTimestamp(processing_end_time)}</span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-gray-600 font-medium text-lg">Total Duration</span>
+                  <span className="text-gray-900 font-bold text-xl">
                     {total_processing_time ? `${total_processing_time.toFixed(2)}s` : 'Unknown'}
                   </span>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between">
-                  <span className="text-gray-600 font-medium">Final Status:</span>
-                  <span className={`px-2 py-1 rounded text-sm ${getStatusColor("success")}`}>
-                    success
+                <div className="flex justify-between items-center py-3">
+                  <span className="text-gray-600 font-medium text-lg">Final Status</span>
+                  <span className={`px-4 py-2 rounded-lg font-semibold ${getStatusColor("success")}`}>
+                    Success
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Emergency Context */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <span className="text-red-500 mr-2">🚨</span>
-                Emergency Context
-              </h2>
+            {/* Emergency Context Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mr-4">
+                  <span className="text-red-600 text-2xl">🚨</span>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">Emergency Context</h2>
+              </div>
+              
               {emergency_context ? (
-                <div className="space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:justify-between">
-                    <span className="text-gray-600 font-medium">Emergency Type:</span>
-                    <span className="inline-block px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm capitalize">
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium text-lg">Emergency Type</span>
+                    <span className="px-4 py-2 bg-orange-100 text-orange-800 rounded-lg font-semibold capitalize">
                       {emergency_context.emergency_type || 'Unknown'}
                     </span>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between">
-                    <span className="text-gray-600 font-medium">Urgency Level:</span>
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm capitalize ${getUrgencyColor(emergency_context.urgency_level)}`}>
+                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium text-lg">Urgency Level</span>
+                    <span className={`px-4 py-2 rounded-lg font-semibold capitalize ${getUrgencyColor(emergency_context.urgency_level)}`}>
                       {emergency_context.urgency_level || 'Unknown'}
                     </span>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between">
-                    <span className="text-gray-600 font-medium">People Affected:</span>
-                    <span className="text-gray-900 font-semibold">{emergency_context.people_count || 'Unknown'}</span>
+                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium text-lg">People Affected</span>
+                    <span className="text-gray-900 font-bold text-xl">{emergency_context.people_count || 'Unknown'}</span>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between">
-                    <span className="text-gray-600 font-medium">Location:</span>
-                    <span className="text-gray-900 text-sm">
+                  <div className="flex justify-between items-center py-3">
+                    <span className="text-gray-600 font-medium text-lg">Location</span>
+                    <span className="text-gray-900 font-semibold text-right">
                       {emergency_context.latitude && emergency_context.longitude
                         ? `${emergency_context.latitude}, ${emergency_context.longitude}`
                         : 'Unknown'}
@@ -227,140 +271,156 @@ const AIMatrixPage = () => {
                   </div>
                 </div>
               ) : (
-                <p className="text-gray-500 italic">No emergency context data available</p>
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-lg italic">No emergency context data available</p>
+                </div>
               )}
             </div>
           </div>
 
-<div className="bg-gradient-to-br from-white via-blue-50 to-white rounded-2xl shadow-lg border border-gray-200 p-8 transition-all duration-300 hover:shadow-xl my-3">
-  <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-    <span className="text-blue-500 mr-3 text-2xl">🧠</span>
-    Emergency Report AI Agents Information
-  </h2>
+          {/* AI Agents Information Card */}
+          <div className="bg-gradient-to-br from-white via-blue-50 to-white rounded-xl shadow-lg border border-gray-200 p-8">
+            <div className="flex items-center mb-8">
+              <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
+                <span className="text-blue-600 text-3xl">🧠</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Emergency Report AI Agents Information</h2>
+            </div>
 
-  {matrixData?.components_status ? (
-    <div className="space-y-8">
+            {matrixData?.components_status ? (
+              <div className="space-y-10">
+                
+                {/* AI Agents Section */}
+                <div>
+                  <div className="flex items-center mb-6">
+                    <span className="text-2xl mr-3">🤖</span>
+                    <h3 className="text-xl font-bold text-gray-800">AI Agents</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(matrixData.components_status)
+                      .filter(([key]) => key.includes('_ai'))
+                      .map(([name, status]) => (
+                        <div key={name} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-800 font-semibold text-lg capitalize">
+                              {name.replace(/_/g, ' ')}
+                            </span>
+                            <span
+                              className={`px-4 py-2 rounded-lg font-semibold capitalize ${
+                                status === 'completed'
+                                  ? 'bg-green-100 text-green-700'
+                                  : status === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
 
-      {/* AI Agents */}
-      <div>
-        <h3 className="text-gray-800 font-semibold text-base mb-3 flex items-center gap-2">
-          🤖 AI Agents 
-        </h3>
-        <ul className="space-y-2 text-sm">
-          {Object.entries(matrixData.components_status)
-            .filter(([key]) => key.includes('_ai'))
-            .map(([name, status]) => (
-              <li key={name} className="flex justify-between items-center bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100">
-                <span className="capitalize text-gray-700 font-medium">
-                  {name.replace(/_/g, ' ')}
-                </span>
-                <span
-                  className={`capitalize px-3 py-1 rounded-full text-xs font-semibold tracking-wide shadow-sm transition-all duration-200 ${
-                    status === 'completed'
-                      ? 'bg-green-100 text-green-700'
-                      : status === 'pending'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-red-100 text-red-700'
-                  }`}
-                >
-                  {status}
-                </span>
-              </li>
-            ))}
-        </ul>
-      </div>
+                {/* Tools Section */}
+                <div>
+                  <div className="flex items-center mb-6">
+                    <span className="text-2xl mr-3">🛠️</span>
+                    <h3 className="text-xl font-bold text-gray-800">Tools</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(matrixData.components_status)
+                      .filter(([key]) => key.includes('_tool'))
+                      .map(([name, status]) => (
+                        <div key={name} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-800 font-semibold text-lg capitalize">
+                              {name.replace(/_/g, ' ')}
+                            </span>
+                            <span
+                              className={`px-4 py-2 rounded-lg font-semibold capitalize ${
+                                status === 'completed'
+                                  ? 'bg-green-100 text-green-700'
+                                  : status === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
 
-      {/* Tools */}
-      <div>
-        <h3 className="text-gray-800 font-semibold text-base mb-3 flex items-center gap-2">
-          🛠️ Tools
-        </h3>
-        <ul className="space-y-2 text-sm">
-          {Object.entries(matrixData.components_status)
-            .filter(([key]) => key.includes('_tool'))
-            .map(([name, status]) => (
-              <li key={name} className="flex justify-between items-center bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100">
-                <span className="capitalize text-gray-700 font-medium">
-                  {name.replace(/_/g, ' ')}
-                </span>
-                <span
-                  className={`capitalize px-3 py-1 rounded-full text-xs font-semibold tracking-wide shadow-sm transition-all duration-200 ${
-                    status === 'completed'
-                      ? 'bg-green-100 text-green-700'
-                      : status === 'pending'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-red-100 text-red-700'
-                  }`}
-                >
-                  {status}
-                </span>
-              </li>
-            ))}
-        </ul>
-      </div>
+                {/* Summary Section */}
+                <div className="bg-white rounded-xl p-8 border border-gray-200">
+                  <h3 className="text-xl font-bold text-gray-800 mb-6">Summary Statistics</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-gray-900 mb-1">
+                        {matrixData.components_summary?.total_components || 0}
+                      </div>
+                      <div className="text-sm text-gray-600 font-medium">Total Components</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-green-600 mb-1">
+                        {matrixData.components_summary?.completed_components || 0}
+                      </div>
+                      <div className="text-sm text-gray-600 font-medium">Completed</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-red-600 mb-1">
+                        {matrixData.components_summary?.failed_components || 0}
+                      </div>
+                      <div className="text-sm text-gray-600 font-medium">Failed</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-blue-600 mb-1">
+                        {matrixData.components_summary?.success_rate || 0}%
+                      </div>
+                      <div className="text-sm text-gray-600 font-medium">Success Rate</div>
+                    </div>
+                  </div>
 
-      {/* Summary */}
-      <div className="pt-6 border-t mt-6 text-sm text-gray-700 space-y-2">
-        <div className="flex justify-between">
-          <span>Total Components:</span>
-          <span className="font-bold">
-            {matrixData.components_summary.total_components}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span>Completed:</span>
-          <span className="font-bold text-green-600">
-            {matrixData.components_summary.completed_components}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span>Failed:</span>
-          <span className="font-bold text-red-600">
-            {matrixData.components_summary.failed_components}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span>Success Rate:</span>
-          <span className="font-bold text-blue-600">
-            {matrixData.components_summary.success_rate}%
-          </span>
-        </div>
-
-        {/* Visual Success Rate Bar */}
-        <div className="mt-4">
-          <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-blue-500 rounded-full transition-all duration-700"
-              style={{ width: `${matrixData.components_summary.success_rate}%` }}
-            />
+                  {/* Visual Success Rate Bar */}
+                  <div className="mt-8">
+                    <div className="h-4 w-full bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-1000 ease-out"
+                        style={{ width: `${matrixData.components_summary?.success_rate || 0}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-center text-gray-500 mt-3 font-medium">Success Rate Visualization</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <p className="text-gray-500 text-xl italic">No component status data available</p>
+              </div>
+            )}
           </div>
-          <p className="text-xs text-center text-gray-500 mt-1">Visual representation of success rate</p>
-        </div>
-      </div>
-    </div>
-  ) : (
-    <p className="text-gray-500 italic">No component status data available</p>
-  )}
-</div>
 
-          {/* Logs Section - Only show if logs exist */}
-          {logs && <LogsSection logs={logs} />}
- {/* Task Information Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 my-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <span className="text-purple-500 mr-2">📋</span>
-              Task Workflow Agents Information
-            </h2>
+          {/* Task Workflow Information Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div className="flex items-center mb-8">
+              <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mr-4">
+                <span className="text-purple-600 text-3xl">📋</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Task Workflow Agents Information</h2>
+            </div>
 
-            <div className="space-y-6 ">
+            <div className="space-y-8">
               {/* First Task */}
               {taskData.firstTask && (
-                <div className="border-b pb-4">
-                  <h3 className="text-md font-medium text-gray-800 mb-2">Initial Task Generator Agent</h3>
-                  <div className="space-y-2">
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">Initial Task Generator Agent</h3>
+                  <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Fallback Status:</span>
-                      <span className={`px-2 py-1 rounded text-sm ${
+                      <span className="text-gray-600 font-medium text-lg">Fallback Status</span>
+                      <span className={`px-4 py-2 rounded-lg font-semibold ${
                         taskData.firstTask.is_fallback 
                           ? 'bg-yellow-100 text-yellow-800' 
                           : 'bg-green-100 text-green-800'
@@ -369,13 +429,13 @@ const AIMatrixPage = () => {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Timestamp:</span>
-                      <span className="text-sm text-gray-800">
+                      <span className="text-gray-600 font-medium text-lg">Timestamp</span>
+                      <span className="text-gray-900 font-semibold">
                         {new Date(taskData.firstTask.timestamp * 1000).toLocaleString()}
                       </span>
                     </div>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-600">{taskData.firstTask.description}</p>
+                    <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                      <p className="text-gray-700 leading-relaxed">{taskData.firstTask.description}</p>
                     </div>
                   </div>
                 </div>
@@ -383,12 +443,12 @@ const AIMatrixPage = () => {
 
               {/* Last Task */}
               {taskData.lastTask && (
-                <div>
-                  <h3 className="text-md font-medium text-gray-800 mb-2">User Request Task Generator Agent</h3>
-                  <div className="space-y-2">
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">User Request Task Generator Agent</h3>
+                  <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Fallback Status:</span>
-                      <span className={`px-2 py-1 rounded text-sm ${
+                      <span className="text-gray-600 font-medium text-lg">Fallback Status</span>
+                      <span className={`px-4 py-2 rounded-lg font-semibold ${
                         taskData.lastTask.is_fallback 
                           ? 'bg-yellow-100 text-yellow-800' 
                           : 'bg-green-100 text-green-800'
@@ -397,23 +457,32 @@ const AIMatrixPage = () => {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Timestamp:</span>
-                      <span className="text-sm text-gray-800">
+                      <span className="text-gray-600 font-medium text-lg">Timestamp</span>
+                      <span className="text-gray-900 font-semibold">
                         {new Date(taskData.lastTask.timestamp * 1000).toLocaleString()}
                       </span>
                     </div>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-600">{taskData.lastTask.description}</p>
+                    <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                      <p className="text-gray-700 leading-relaxed">{taskData.lastTask.description}</p>
                     </div>
                   </div>
                 </div>
               )}
 
               {!taskData.firstTask && !taskData.lastTask && (
-                <p className="text-gray-500 italic">No task data available</p>
+                <div className="text-center py-16">
+                  <p className="text-gray-500 text-xl italic">No task data available</p>
+                </div>
               )}
             </div>
           </div>
+
+          {/* Logs Section - Only show if logs exist */}
+          {logs && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <LogsSection logs={logs} />
+            </div>
+          )}
         </div>
       </div>
       <Footer />

@@ -320,21 +320,21 @@ const GovResources: React.FC = () => {
             })}
           </div>
           <div className="flex justify-center items-center gap-3 mb-6 text-sm text-gray-800">
-  <label htmlFor="map-layer" className="font-medium">
-    Map Layer:
-  </label>
-  <select
-    id="map-layer"
-    value={weatherLayerType}
-    onChange={e => setWeatherLayerType(e.target.value)}
-    className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-  >
-    <option value="precipitation_new">🌧️ Precipitation – Floods, Storms</option>
-    <option value="wind_new">💨 Wind – Storms, Fire Spread</option>
-    <option value="temp_new">🌡️ Temperature – Heatwaves, Wildfires</option>
-    <option value="clouds_new">☁️ Clouds – General Weather</option>
-  </select>
-</div>
+            <label htmlFor="map-layer" className="font-medium">
+              Map Layer:
+            </label>
+            <select
+              id="map-layer"
+              value={weatherLayerType}
+              onChange={e => setWeatherLayerType(e.target.value)}
+              className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="precipitation_new">🌧️ Precipitation – Floods, Storms</option>
+              <option value="wind_new">💨 Wind – Storms, Fire Spread</option>
+              <option value="temp_new">🌡️ Temperature – Heatwaves, Wildfires</option>
+              <option value="clouds_new">☁️ Clouds – General Weather</option>
+            </select>
+          </div>
 
           {/* Map */}
           {((!['insights'].includes(selectedCategory) && filteredResources.length > 0) || selectedCategory === 'contacts') && (
@@ -461,11 +461,12 @@ const GovResources: React.FC = () => {
                         <label className="text-sm font-medium text-gray-500">AI Processing Time</label>
                         <p className="text-gray-900">{disasterData?.ai_processing_time}s</p>
                         <button
-                          className="text-blue-600 text-sm underline mt-1"
+                          className="bg-blue-600 my-2 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg shadow-md transition duration-300"
                           onClick={() => window.open(`/gov/ai_matrix?id=${disasterData?.disaster_id}`, '_blank')}
                         >
-                          View AI Matrix
+                          View AI Metrics
                         </button>
+
                       </div>
                     </div>
                   </div>
