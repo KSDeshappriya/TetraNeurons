@@ -182,10 +182,7 @@ first_responders:
 
 Volunteers and general users are not restricted by domain.so we assume Each government agency or first responder department must issue an official email to its personnel.
 
-* **Disaster Location Precision**: We assume each disaster affects an approximate area of **20 km²**, determined using **geohash level 4** for location precision.
-
-* **Reporter Proximity:**
-We assume that the individual who first sends a request for assistance is located at the center of the disaster area. This assumption helps streamline the coordination and deployment of emergency resources by using the requester’s location as the central reference point for mapping the affected zone. It allows us to estimate the extent of the impact, prioritize response efforts, and optimize the allocation of aid and rescue operations, especially in the early stages when comprehensive data from the entire area may not yet be available.
+* **Disaster Location Precision & Reporter Proximity**: We assume each disaster affects around 20 km², based on geohash level 4. The first person requesting help is considered to be near the center of the affected area, not at the edge. This helps us quickly map the zone, prioritize response, and allocate resources. The area size can still be adjusted manually if needed.
 
 * **Disaster Task Sending Strategy**:
 
