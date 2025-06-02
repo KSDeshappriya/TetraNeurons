@@ -219,18 +219,18 @@ Volunteers and general users are not restricted by domain.so we assume Each gove
 **Triggered**: When first emergency call/photo is submitted
 **Purpose**: Create government and citizen reports, predict future impact, validate request authenticity
 
-#### Multiagent Architecture:
-**3 AI Agents:**
-- **Computer Vision AI Agent**: Analyzes emergency photos using CNN + YOLO models
+**2 AI Agents:**
+
 - **Government Analysis AI Agent**: Creates official response reports using Gemini AI
 - **Citizen Survival AI Agent**: Generates public safety instructions using Gemini AI
 
-**2 Data Collection Tools:**
+**3 Data Collection Tools:**
+- **Computer Vision Tool**: Analyzes emergency photos using CNN + YOLO models
 - **Weather Tool**: Gets current conditions (Open-Meteo API)
 - **Disaster History Tool**: Fetches past disasters (GDAC API)
 
 **5 System Coordinators:**
-- **Parallel Data Coordinator**: Runs weather + history tools simultaneously
+- **Parallel Data Coordinator**: Runs weather + history+ computer vision tools simultaneously
 - **Data Validation Coordinator**: Checks data quality and completeness
 - **Parallel AI Coordinator**: Runs government + citizen agents simultaneously
 - **Final Review Coordinator**: Evaluates all outputs for acceptance/rejection
@@ -238,9 +238,9 @@ Volunteers and general users are not restricted by domain.so we assume Each gove
 
 #### Multiagent Interaction Flow:
 ```
-Emergency Photo → Computer Vision Agent (independent analysis)
+          First Emergency Request
                         ↓
-Parallel Data Collection → Weather Tool + History Tool (simultaneous)
+Parallel Data Collection → Weather Tool + History Tool +  Computer Vision Tool (simultaneous)
                         ↓
 Data Validation → Quality check by validation coordinator
                         ↓
@@ -258,14 +258,16 @@ Final Coordination → Master coordinator reviews all agent outputs → Decision
 **Triggered**: When government accepts the emergency report
 **Purpose**: Create specific tasks for responders and dispatch them
 
+**1 AI Agent:**
+- **AI Task Generator Agent**: Creates specific responder instructions (Gemini 2.0)
+
 #### Components:
 - **Disaster Context Fetcher**: Gets emergency details from database
-- **AI Task Generator**: Creates specific responder instructions (Gemini 2.0)
-- **Task Dispatcher**: Assigns tasks to appropriate responders
+- **Task Dispatcher**: Assigns tasks by uploading them to real-time database.
 
 #### Process Flow:
 ```
-Government Approval → Disaster Lookup →  Task Generation → Responder Assignment → Task Dispatch
+Government Approval → Disaster Lookup →  Task Generation + Responder Assignment by ai agent→ Task Dispatch
 ```
 
 ---
@@ -274,17 +276,19 @@ Government Approval → Disaster Lookup →  Task Generation → Responder Assig
 **Triggered**: When other people in the same disaster area request help
 **Purpose**: Add new tasks for existing disaster without full analysis
 
+**1 AI Agent:**
+- **AI Task Generator Agent**:creates tasks based on existing disaster & resource context (Gemini 2.0)
+
 #### Components:
 - **Help Request Processor**: Validates new help requests
-- **Existing Disaster Linker**: Links request to ongoing disaster
+- **Disaster Context Fetcher**: Gets emergency details from database
 - **Resource Finder**: Locates nearby hospitals, shelters, supplies
-- **Quick Task Generator**: Creates tasks based on existing disaster context (Gemini 2.0)
-- **Task Adder**: Adds new tasks to existing response effort
+- **Task Adder**: Adds new tasks to existing tasks in database
 
 #### Process Flow:
 ```
-Help Request → Link to Existing Disaster → Resource Discovery → 
-Quick Task Generation → Add to Task Queue → Responder Assignment
+Help Request → Disaster Lookup → Resource Discovery → 
+Quick Task Generation by ai agent → Add to Task Queue → Responder Assignment
 ```
 
 ## 🔗 Workflow Integration

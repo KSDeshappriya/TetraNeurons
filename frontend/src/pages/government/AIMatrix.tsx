@@ -15,6 +15,45 @@ const AIMatrixPage = () => {
   const disasterId = searchParams.get('id');
   const [matrixData, setMatrixData] = useState(null);
   const [loading, setLoading] = useState(true);
+   const [taskData, setTaskData] = useState({
+    firstTask: null,
+    lastTask: null
+  });
+
+  useEffect(() => {
+    if (!disasterId) return;
+    
+    const fetchTasks = async () => {
+      const db = getDatabase(app);
+      const tasksRef = ref(db, `tasks/${disasterId}`);
+      
+      try {
+        const snapshot = await get(tasksRef);
+        if (snapshot.exists()) {
+          const tasks = snapshot.val();
+          
+          // Find first task (first_Task: true)
+          const firstTask = Object.values(tasks).find(task => task.first_Task === true);
+          
+          // Find last task (most recent timestamp with first_Task: false)
+          const nonFirstTasks = Object.values(tasks)
+            .filter(task => task.first_Task === false)
+            .sort((a, b) => b.timestamp - a.timestamp);
+          
+          const lastTask = nonFirstTasks[0];
+          
+          setTaskData({
+            firstTask,
+            lastTask
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    };
+
+    fetchTasks();
+  }, [disasterId]);
 
   useEffect(() => {
     if (!disasterId) return;
@@ -193,10 +232,10 @@ const AIMatrixPage = () => {
             </div>
           </div>
 
-<div className="bg-gradient-to-br from-white via-blue-50 to-white rounded-2xl shadow-lg border border-gray-200 p-8 transition-all duration-300 hover:shadow-xl">
+<div className="bg-gradient-to-br from-white via-blue-50 to-white rounded-2xl shadow-lg border border-gray-200 p-8 transition-all duration-300 hover:shadow-xl my-3">
   <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
     <span className="text-blue-500 mr-3 text-2xl">🧠</span>
-    Component Status Summary
+    Emergency Report AI Agents Information
   </h2>
 
   {matrixData?.components_status ? (
@@ -205,7 +244,7 @@ const AIMatrixPage = () => {
       {/* AI Agents */}
       <div>
         <h3 className="text-gray-800 font-semibold text-base mb-3 flex items-center gap-2">
-          🤖 AI Agents
+          🤖 AI Agents 
         </h3>
         <ul className="space-y-2 text-sm">
           {Object.entries(matrixData.components_status)
@@ -306,8 +345,75 @@ const AIMatrixPage = () => {
 
           {/* Logs Section - Only show if logs exist */}
           {logs && <LogsSection logs={logs} />}
+ {/* Task Information Section */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 my-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <span className="text-purple-500 mr-2">📋</span>
+              Task Workflow Agents Information
+            </h2>
 
+            <div className="space-y-6 ">
+              {/* First Task */}
+              {taskData.firstTask && (
+                <div className="border-b pb-4">
+                  <h3 className="text-md font-medium text-gray-800 mb-2">Initial Task Generator Agent</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Fallback Status:</span>
+                      <span className={`px-2 py-1 rounded text-sm ${
+                        taskData.firstTask.is_fallback 
+                          ? 'bg-yellow-100 text-yellow-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {taskData.firstTask.is_fallback ? 'True' : 'False'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Timestamp:</span>
+                      <span className="text-sm text-gray-800">
+                        {new Date(taskData.firstTask.timestamp * 1000).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-600">{taskData.firstTask.description}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
+              {/* Last Task */}
+              {taskData.lastTask && (
+                <div>
+                  <h3 className="text-md font-medium text-gray-800 mb-2">User Request Task Generator Agent</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Fallback Status:</span>
+                      <span className={`px-2 py-1 rounded text-sm ${
+                        taskData.lastTask.is_fallback 
+                          ? 'bg-yellow-100 text-yellow-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {taskData.lastTask.is_fallback ? 'True' : 'False'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Timestamp:</span>
+                      <span className="text-sm text-gray-800">
+                        {new Date(taskData.lastTask.timestamp * 1000).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-600">{taskData.lastTask.description}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!taskData.firstTask && !taskData.lastTask && (
+                <p className="text-gray-500 italic">No task data available</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       <Footer />

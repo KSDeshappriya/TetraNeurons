@@ -5,6 +5,7 @@ import uuid
 import google.generativeai as genai
 import os
 import json
+import time
 
 # Configure Gemini API
 genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
@@ -33,6 +34,7 @@ def generate_task(state: TaskState) -> TaskState:
     emergency_type = data.get("emergency_type", "")
     latitude = data.get("latitude", "")
     longitude = data.get("longitude", "")
+    current_timestamp = int(time.time())
 
     # Enhanced prompt for AI-driven role assignment and task generation
     prompt = f"""
@@ -142,6 +144,11 @@ def generate_task(state: TaskState) -> TaskState:
             "latitude": latitude,
             "longitude": longitude,
             "people_count": people,
+            "timestamp": current_timestamp,
+            "created_at": current_timestamp,
+            "updated_at": current_timestamp,
+            "is_fallback": False,
+            "first_Task": True,
             "ai_reasoning": ai_data.get("reasoning", "AI-determined role assignment")
         }
 
@@ -231,6 +238,11 @@ def generate_task(state: TaskState) -> TaskState:
             "latitude": latitude,
             "longitude": longitude,
             "people_count": people,
+            "timestamp": current_timestamp,
+            "created_at": current_timestamp,
+            "updated_at": current_timestamp,
+            "is_fallback": True,
+            "first_Task": True,
             "ai_reasoning": "Enhanced fallback assignment considering scale and complexity"
         }
 

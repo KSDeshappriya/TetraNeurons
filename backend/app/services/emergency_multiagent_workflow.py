@@ -154,23 +154,7 @@ def save_ai_matrix_to_database(state: EmergencyState, disaster_id: str):
         print(f"Error saving AI Matrix to Realtime Database: {str(e)}")
         return False
 
-# === AI AGENTS (True AI-powered components) ===
-
-def computer_vision_ai_agent(state: EmergencyState) -> EmergencyState:
-    """AI Agent: Computer Vision Analysis using CNN/YOLO models"""
-    add_log_to_matrix(state, "🤖 AI AGENT: Computer Vision - Processing image with CNN/YOLO models...", "ai_agent_computer_vision", "info")
-    
-    try:
-        image_bytes = state["image_bytes"]
-        cnn_result = analyze_image_with_summary(BytesIO(image_bytes), disaster_model, yolo_model, device)
-        state["cnn_result"] = cnn_result
-        state["agents_status"]["computer_vision_ai"] = "completed"
-        add_log_to_matrix(state, f"✅ AI AGENT: Computer Vision - Analysis completed: {cnn_result[:100]}...", "ai_agent_computer_vision", "success")
-    except Exception as e:
-        state["agents_status"]["computer_vision_ai"] = "failed"
-        add_log_to_matrix(state, f"❌ AI AGENT: Computer Vision - Failed: {str(e)}", "ai_agent_computer_vision", "error")
-    
-    return state
+# === AI AGENTS (True AI-powered components with prompting) ===
 
 def government_analysis_ai_agent(state: EmergencyState) -> EmergencyState:
     """AI Agent: Government Response Analysis using Gemini AI"""
@@ -331,7 +315,23 @@ def citizen_survival_ai_agent(state: EmergencyState) -> EmergencyState:
     
     return state
 
-# === DATA COLLECTION TOOLS (Non-AI API calls) ===
+# === DATA COLLECTION TOOLS (Non-AI components) ===
+
+def computer_vision_analysis_tool(state: EmergencyState) -> EmergencyState:
+    """Data Collection Tool: Computer Vision Analysis using CNN/YOLO models"""
+    add_log_to_matrix(state, "🔧 DATA TOOL: Computer Vision - Processing image with CNN/YOLO models...", "data_tool_computer_vision", "info")
+    
+    try:
+        image_bytes = state["image_bytes"]
+        cnn_result = analyze_image_with_summary(BytesIO(image_bytes), disaster_model, yolo_model, device)
+        state["cnn_result"] = cnn_result
+        state["agents_status"]["computer_vision_tool"] = "completed"
+        add_log_to_matrix(state, f"✅ DATA TOOL: Computer Vision - Analysis completed: {cnn_result[:100]}...", "data_tool_computer_vision", "success")
+    except Exception as e:
+        state["agents_status"]["computer_vision_tool"] = "failed"
+        add_log_to_matrix(state, f"❌ DATA TOOL: Computer Vision - Failed: {str(e)}", "data_tool_computer_vision", "error")
+    
+    return state
 
 def weather_data_collection_tool(state: EmergencyState) -> EmergencyState:
     """Data Collection Tool: Weather API integration"""
@@ -381,30 +381,36 @@ def parallel_data_collection_coordinator(state: EmergencyState) -> EmergencyStat
     
     # Initialize component status tracking
     state["agents_status"] = {
-        "computer_vision_ai": "pending",
+        "computer_vision_tool": "pending",
         "weather_data_tool": "pending", 
         "disaster_history_tool": "pending",
         "government_analysis_ai": "pending",
         "citizen_survival_ai": "pending"
     }
     
-    # Run weather and disaster history tools in parallel using threading
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        # Submit both tasks
+    # Run all three data collection tools in parallel using threading
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        # Submit all three tasks
+        cv_future = executor.submit(computer_vision_analysis_tool, state.copy())
         weather_future = executor.submit(weather_data_collection_tool, state.copy())
         disaster_future = executor.submit(disaster_history_collection_tool, state.copy())
         
-        # Wait for both to complete and merge results
+        # Wait for all to complete and merge results
+        cv_result = cv_future.result()
         weather_result = weather_future.result()
         disaster_result = disaster_future.result()
         
         # Merge results back into main state
+        state["cnn_result"] = cv_result["cnn_result"]
         state["weather"] = weather_result["weather"]
         state["gdac_disasters"] = disaster_result["gdac_disasters"]
+        state["agents_status"]["computer_vision_tool"] = cv_result["agents_status"]["computer_vision_tool"]
         state["agents_status"]["weather_data_tool"] = weather_result["agents_status"]["weather_data_tool"]
         state["agents_status"]["disaster_history_tool"] = disaster_result["agents_status"]["disaster_history_tool"]
         
         # Merge logs from parallel tasks
+        if "ai_matrix_logs" in cv_result:
+            state["ai_matrix_logs"].extend(cv_result["ai_matrix_logs"])
         if "ai_matrix_logs" in weather_result:
             state["ai_matrix_logs"].extend(weather_result["ai_matrix_logs"])
         if "ai_matrix_logs" in disaster_result:
@@ -428,7 +434,7 @@ def data_validation_coordinator(state: EmergencyState) -> EmergencyState:
     state["analysis_ready"] = validation_results["computer_vision"]  # Computer vision is critical
     
     add_log_to_matrix(state, f"✅ SYSTEM COORDINATOR: Data Validation - Validation complete. Ready for AI analysis: {state['analysis_ready']}", "system_coordinator_validation", "success")
-    add_log_to_matrix(state, f"   - Computer Vision AI: {'✅' if validation_results['computer_vision'] else '❌'}", "system_coordinator_validation", "info")
+    add_log_to_matrix(state, f"   - Computer Vision Tool: {'✅' if validation_results['computer_vision'] else '❌'}", "system_coordinator_validation", "info")
     add_log_to_matrix(state, f"   - Weather Data Tool: {'✅' if validation_results['weather_data'] else '❌'}", "system_coordinator_validation", "info")
     add_log_to_matrix(state, f"   - Disaster History Tool: {'✅' if validation_results['disaster_history'] else '❌'}", "system_coordinator_validation", "info")
     
@@ -478,8 +484,8 @@ def final_system_coordinator(state: EmergencyState) -> EmergencyState:
     add_log_to_matrix(state, f"📊 Processing Summary: {completed_components}/{total_components} components completed successfully", "system_coordinator_final", "info")
     
     # Categorize components for logging
-    ai_agents = ["computer_vision_ai", "government_analysis_ai", "citizen_survival_ai"]
-    data_tools = ["weather_data_tool", "disaster_history_tool"]
+    ai_agents = ["government_analysis_ai", "citizen_survival_ai"]
+    data_tools = ["computer_vision_tool", "weather_data_tool", "disaster_history_tool"]
     
     add_log_to_matrix(state, "🤖 AI AGENTS STATUS:", "system_coordinator_final", "info")
     for agent in ai_agents:
@@ -495,11 +501,11 @@ def final_system_coordinator(state: EmergencyState) -> EmergencyState:
             status_icon = "✅" if status == "completed" else "❌" if status == "failed" else "⏳"
             add_log_to_matrix(state, f"   - {tool}: {status_icon} {status}", "system_coordinator_final", "info")
     
-    # Determine overall status based on critical AI agents
-    critical_ai_agents = ["computer_vision_ai"]  # Define which AI agents are critical
-    critical_success = all(state["agents_status"].get(agent) == "completed" for agent in critical_ai_agents)
+    # Determine overall status based on critical components
+    critical_tools = ["computer_vision_tool"]  # Define which tools are critical
+    critical_success = all(state["agents_status"].get(tool) == "completed" for tool in critical_tools)
     
-    if critical_success and completed_components >= len(critical_ai_agents):
+    if critical_success and completed_components >= len(critical_tools):
         state["status"] = "accepted"
         add_log_to_matrix(state, "✅ SYSTEM COORDINATOR: Final Processing - Emergency response ACCEPTED", "system_coordinator_final", "success")
     else:
@@ -511,22 +517,20 @@ def final_system_coordinator(state: EmergencyState) -> EmergencyState:
 def create_multiagent_emergency_graph():
     """Create the multiagent emergency response graph with clear AI/Tool distinction"""
     print("🏗️ Creating Multiagent Emergency Response System...")
-    print("🤖 AI Agents: Computer Vision, Government Analysis, Citizen Survival")
-    print("🔧 Data Tools: Weather Collection, Disaster History Collection")
+    print("🤖 AI Agents: Government Analysis, Citizen Survival")
+    print("🔧 Data Tools: Computer Vision Analysis, Weather Collection, Disaster History Collection")
     print("⚙️ System Coordinators: Data Collection, Data Validation, AI Analysis, Final Processing")
     
     graph = StateGraph(EmergencyState)
     
-    # Add AI agents and tools with coordinators
-    graph.add_node("computer_vision_ai", computer_vision_ai_agent)
+    # Add coordinators only (tools and AI agents are called within coordinators)
     graph.add_node("parallel_data_collection", parallel_data_collection_coordinator)
     graph.add_node("data_validation", data_validation_coordinator)
     graph.add_node("parallel_ai_analysis", parallel_ai_analysis_coordinator)
     graph.add_node("final_coordinator", final_system_coordinator)
 
     # Set up the workflow
-    graph.set_entry_point("computer_vision_ai")
-    graph.add_edge("computer_vision_ai", "parallel_data_collection")
+    graph.set_entry_point("parallel_data_collection")
     graph.add_edge("parallel_data_collection", "data_validation")
     graph.add_edge("data_validation", "parallel_ai_analysis")
     graph.add_edge("parallel_ai_analysis", "final_coordinator")
@@ -550,7 +554,7 @@ async def handle_emergency_report(
 ):
     """Main handler for emergency reports using multiagent system"""
     print("🚨 MULTIAGENT EMERGENCY RESPONSE SYSTEM ACTIVATED 🚨")
-    print("🤖 3 AI Agents + 2 Data Collection Tools + 4 System Coordinators")
+    print("🤖 2 AI Agents + 3 Data Collection Tools + 4 System Coordinators")
     
     if image is None:
         return {"error": "No image uploaded"}
@@ -596,8 +600,8 @@ async def handle_emergency_report(
 
     # Add initial log entry
     add_log_to_matrix(initial_state, "🚨 MULTIAGENT EMERGENCY RESPONSE SYSTEM ACTIVATED 🚨", "system", "info")
-    add_log_to_matrix(initial_state, "🤖 AI AGENTS: Computer Vision, Government Analysis, Citizen Survival", "system", "info")
-    add_log_to_matrix(initial_state, "🔧 DATA TOOLS: Weather Collection, Disaster History Collection", "system", "info")
+    add_log_to_matrix(initial_state, "🤖 AI AGENTS: Government Analysis, Citizen Survival", "system", "info")
+    add_log_to_matrix(initial_state, "🔧 DATA TOOLS: Computer Vision Analysis, Weather Collection, Disaster History Collection", "system", "info")
     add_log_to_matrix(initial_state, f"📋 Generated Disaster ID: {disaster_id}", "system", "info")
     add_log_to_matrix(initial_state, "⚙️ Starting Multiagent Processing Pipeline...", "system", "info")
     
