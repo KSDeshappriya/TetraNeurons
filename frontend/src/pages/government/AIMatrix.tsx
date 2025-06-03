@@ -284,7 +284,7 @@ const AIMatrixPage = () => {
               <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
                 <span className="text-blue-600 text-3xl">🧠</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Emergency Report AI Agents Information</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Emergency Report AI Agents Information (Workflow - 1)</h2>
             </div>
 
             {matrixData?.components_status ? (
@@ -409,14 +409,16 @@ const AIMatrixPage = () => {
               <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mr-4">
                 <span className="text-purple-600 text-3xl">📋</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Task Workflow Agents Information</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Task Workflow AI Agents Information</h2>
             </div>
+
+            
 
             <div className="space-y-8">
               {/* First Task */}
               {taskData.firstTask && (
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-800 mb-4">Initial Task Generator Agent</h3>
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">Initial Task Generator Agent (Workflow - 2)</h3>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600 font-medium text-lg">Fallback Status</span>
@@ -444,7 +446,7 @@ const AIMatrixPage = () => {
               {/* Last Task */}
               {taskData.lastTask && (
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-800 mb-4">User Request Task Generator Agent</h3>
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">User Request Task Generator Agent (Workflow - 3)</h3>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600 font-medium text-lg">Fallback Status</span>

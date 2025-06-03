@@ -13,6 +13,8 @@ import pygeohash as pgh
 from firebase_admin import storage, db
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+import xml.etree.ElementTree as ET
+import math
 
 gemini = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=os.getenv("GOOGLE_API_KEY"))
 
@@ -81,6 +83,97 @@ def generate_geohash_date_uuid(latitude, longitude) -> str:
     timestamp = str(int(time.time()))
     unique_id = f"{geohash}_{timestamp}_{str(uuid.uuid4())[:8]}"
     return unique_id
+
+def parse_gdacs_rss_feed(rss_content, target_lat, target_lon, radius_km=100):
+    """
+    Parse GDACS RSS feed and filter disasters within specified radius
+    """
+    try:
+        root = ET.fromstring(rss_content)
+        disasters = []
+        
+        # Find all item elements in the RSS feed
+        for item in root.findall('.//item'):
+            disaster_info = {}
+            
+            # Extract basic information
+            title = item.find('title')
+            if title is not None:
+                disaster_info['title'] = title.text
+            
+            description = item.find('description')
+            if description is not None:
+                disaster_info['description'] = description.text
+            
+            link = item.find('link')
+            if link is not None:
+                disaster_info['link'] = link.text
+            
+            pub_date = item.find('pubDate')
+            if pub_date is not None:
+                disaster_info['published_date'] = pub_date.text
+            
+            # Extract GDACS-specific elements (these might be in different namespaces)
+            # Look for geo:lat and geo:long or similar elements
+            for child in item:
+                if 'lat' in child.tag.lower():
+                    try:
+                        disaster_info['latitude'] = float(child.text)
+                    except (ValueError, TypeError):
+                        pass
+                elif 'lon' in child.tag.lower() or 'lng' in child.tag.lower():
+                    try:
+                        disaster_info['longitude'] = float(child.text)
+                    except (ValueError, TypeError):
+                        pass
+                elif 'severity' in child.tag.lower():
+                    disaster_info['severity'] = child.text
+                elif 'event' in child.tag.lower():
+                    disaster_info['event_type'] = child.text
+            
+            # Try to extract coordinates from description if not found in dedicated fields
+            if 'latitude' not in disaster_info or 'longitude' not in disaster_info:
+                # Sometimes coordinates are in the description or title
+                # You might need to parse these with regex if they're embedded in text
+                pass
+            
+            # If we have coordinates, check if disaster is within radius
+            if 'latitude' in disaster_info and 'longitude' in disaster_info:
+                distance = calculate_distance(
+                    target_lat, target_lon,
+                    disaster_info['latitude'], disaster_info['longitude']
+                )
+                disaster_info['distance_km'] = round(distance, 2)
+                
+                if distance <= radius_km:
+                    disasters.append(disaster_info)
+        
+        return disasters
+        
+    except ET.ParseError as e:
+        print(f"Error parsing RSS XML: {str(e)}")
+        return []
+    except Exception as e:
+        print(f"Error processing RSS feed: {str(e)}")
+        return []
+
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """
+    Calculate the great circle distance between two points 
+    on the earth (specified in decimal degrees)
+    Returns distance in kilometers
+    """
+    # Convert decimal degrees to radians
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+
+    # Haversine formula
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    r = 6371  # Radius of earth in kilometers
+    return c * r
 
 def save_to_realtime_database(state: EmergencyState, disaster_id: str, processing_time: float):
     """Save disaster data to Firebase Realtime Database"""
@@ -354,23 +447,83 @@ def weather_data_collection_tool(state: EmergencyState) -> EmergencyState:
     return state
 
 def disaster_history_collection_tool(state: EmergencyState) -> EmergencyState:
-    """Data Collection Tool: GDAC disaster history API integration"""
-    add_log_to_matrix(state, "📊 DATA TOOL: Disaster History - Fetching historical disaster data from GDAC API...", "data_tool_disaster_history", "info")
+    """Data Collection Tool: GDACS RSS feed integration for current disasters"""
+    add_log_to_matrix(state, "📊 DATA TOOL: Disaster History - Fetching current disaster data from GDACS RSS feed...", "data_tool_disaster_history", "info")
     
-    lat = state["latitude"]
-    lon = state["longitude"]
+    lat = float(state["latitude"])
+    lon = float(state["longitude"])
+    radius_km = 20  # Search within 20km radius
+    
     try:
+        # Fetch GDACS RSS feed
         response = requests.get(
-            f"https://www.gdacs.org/gdacsapi/api/events/search?lat={lat}&lon={lon}&radius=100",
-            timeout=10
+            "https://www.gdacs.org/xml/rss.xml",
+            timeout=15,
+            headers={
+                'User-Agent': 'Emergency Response System/1.0'
+            }
         )
-        state["gdac_disasters"] = response.json()
+        response.raise_for_status()
+        
+        # Parse RSS feed and filter by location
+        nearby_disasters = parse_gdacs_rss_feed(
+            response.content, 
+            lat, 
+            lon, 
+            radius_km
+        )
+        
+        # Structure the response
+        gdac_data = {
+            "search_location": {
+                "latitude": lat,
+                "longitude": lon,
+                "search_radius_km": radius_km
+            },
+            "nearby_disasters": nearby_disasters,
+            "total_disasters_found": len(nearby_disasters),
+            "last_updated": datetime.now().isoformat(),
+            "data_source": "GDACS RSS Feed"
+        }
+        
+        state["gdac_disasters"] = gdac_data
         state["agents_status"]["disaster_history_tool"] = "completed"
-        add_log_to_matrix(state, "✅ DATA TOOL: Disaster History - Historical data retrieved successfully", "data_tool_disaster_history", "success")
-    except Exception as e:
-        state["gdac_disasters"] = {"error": str(e)}
+        
+        if nearby_disasters:
+            add_log_to_matrix(
+                state, 
+                f"✅ DATA TOOL: Disaster History - Found {len(nearby_disasters)} disasters within {radius_km}km", 
+                "data_tool_disaster_history", 
+                "success"
+            )
+            # Log disaster details
+            for disaster in nearby_disasters[:3]:  # Log first 3 disasters
+                add_log_to_matrix(
+                    state,
+                    f"   🚨 {disaster.get('event_type', 'Unknown')}: {disaster.get('title', 'No title')} ({disaster.get('distance_km', 'Unknown')}km away)",
+                    "data_tool_disaster_history",
+                    "info"
+                )
+        else:
+            add_log_to_matrix(
+                state, 
+                f"✅ DATA TOOL: Disaster History - No active disasters found within {radius_km}km radius", 
+                "data_tool_disaster_history", 
+                "success"
+            )
+            
+    except requests.RequestException as e:
+        error_msg = f"Network error fetching GDACS RSS: {str(e)}"
+        state["gdac_disasters"] = {"error": error_msg}
         state["agents_status"]["disaster_history_tool"] = "failed"
-        add_log_to_matrix(state, f"❌ DATA TOOL: Disaster History - Failed: {str(e)}", "data_tool_disaster_history", "error")
+        add_log_to_matrix(state, f"❌ DATA TOOL: Disaster History - {error_msg}", "data_tool_disaster_history", "error")
+        
+    except Exception as e:
+        error_msg = f"Error processing GDACS RSS feed: {str(e)}"
+        state["gdac_disasters"] = {"error": error_msg}
+        state["agents_status"]["disaster_history_tool"] = "failed"
+        add_log_to_matrix(state, f"❌ DATA TOOL: Disaster History - {error_msg}", "data_tool_disaster_history", "error")
+    
     return state
 
 # === SYSTEM COORDINATORS (Orchestration components) ===
